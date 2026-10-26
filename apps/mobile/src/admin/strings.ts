@@ -365,6 +365,13 @@ export const adminEs = {
     } as Record<string, string>,
     failed: 'No se pudo guardar. Revisa tu conexión e intenta otra vez.',
     noCategory: 'Sin categoría',
+    cascadeOffTitle: (name: string): string => `${name} también se usa en esto. ¿Lo apagamos también?`,
+    cascadeOnTitle: (name: string): string => `Ya hay ${name}. ¿Volvemos a encender también esto?`,
+    cascadeHint: 'Lo sacamos de la descripción de cada producto. Desmarca lo que no aplique.',
+    cascadeOptions: 'La misma opción en otros grupos',
+    cascadeOffYes: (n: number): string => (n === 1 ? 'Apagar también (1)' : `Apagar también (${n})`),
+    cascadeOnYes: (n: number): string => (n === 1 ? 'Encender también (1)' : `Encender también (${n})`),
+    cascadeOnlyThis: 'Solo la opción',
   },
 
   team: {

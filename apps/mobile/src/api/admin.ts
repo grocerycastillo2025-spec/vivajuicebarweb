@@ -670,6 +670,8 @@ export interface FloorItem {
   readonly name: string;
   readonly categoryId: string | null;
   readonly available: boolean;
+  /** Nombre y descripción en inglés y español, para buscar ingredientes. */
+  readonly texts: readonly string[];
 }
 
 export interface FloorOption {
@@ -677,6 +679,8 @@ export interface FloorOption {
   readonly name: string;
   readonly groupName: string;
   readonly available: boolean;
+  /** Nombre en inglés y en español. */
+  readonly names: readonly string[];
 }
 
 export interface FloorData {
@@ -711,12 +715,28 @@ export async function fetchFloor(storeId: string, lang: 'es' | 'en' = 'es'): Pro
   fail(cats.error);
   fail(items.error);
   fail(mods.error);
+  // Descripciones (con lo que el dueño haya escrito encima): para sugerir
+  // qué productos usan un ingrediente. Si falla, la tienda funciona igual.
+  const described = await supabase
+    .from('menu_items')
+    .select('id, description')
+    .eq('store_id', storeId)
+    .returns<{ id: string; description: string | null }[]>();
+  const descriptionOf = new Map((described.data ?? []).map((d) => [d.id, d.description ?? '']));
   // Nombres en el idioma del panel (el texto base es inglés).
   const es = (base: string, i18n: unknown): string => (lang === 'es' ? spanish(i18n, 'name') || base : base);
   return {
     categories: (cats.data ?? []).map((c) => ({ id: c.id, name: es(c.name, c.i18n), sort: c.sort_order })),
     items: (items.data ?? [])
-      .map((i) => ({ id: i.id, name: es(i.name, i.i18n), categoryId: i.category_id, available: i.available }))
+      .map((i) => ({
+        id: i.id,
+        name: es(i.name, i.i18n),
+        categoryId: i.category_id,
+        available: i.available,
+        texts: [i.name, descriptionOf.get(i.id) ?? '', spanish(i.i18n, 'name'), spanish(i.i18n, 'description')].filter(
+          (x) => x !== '',
+        ),
+      }))
       .sort((a, b) => a.name.localeCompare(b.name, lang)),
     options: (mods.data ?? [])
       .slice()
@@ -727,6 +747,7 @@ export async function fetchFloor(storeId: string, lang: 'es' | 'en' = 'es'): Pro
         name: es(m.name, m.i18n),
         groupName: es(m.catalog_modifier_groups.name, m.catalog_modifier_groups.i18n),
         available: m.available,
+        names: [m.name, spanish(m.i18n, 'name')].filter((x) => x !== ''),
       })),
   };
 }

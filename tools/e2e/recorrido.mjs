@@ -350,6 +350,42 @@ try {
     const [oat] = await db`select available from public.catalog_modifiers where clover_modifier_id = 'viva-mod-milk-oat'`;
     if (item.available || oat.available) throw new Error('No se guardó el agotado');
   });
+  await paso(t, 'tienda-agota-naranja-y-sus-jugos', async () => {
+    await t.getByLabel('Buscar producto u opción').fill('naranja');
+    await t.getByRole('switch', { name: /^Naranja: Disponible/ }).filter({ visible: true }).first().click();
+    await visible(t, 'Naranja también se usa en esto');
+    await visible(t, 'Viva Juice');
+    await visible(t, 'Anti Flu');
+    await t.getByTestId('cascada-si').click();
+    await t.getByLabel('Buscar producto u opción').fill('');
+    let row;
+    for (let i = 0; i < 40; i += 1) {
+      [row] = await db`select bool_or(available) as alguno from public.catalog_items where name in ('Viva Juice', 'Anti Flu')`;
+      if (row.alguno === false) break;
+      await t.waitForTimeout(250);
+    }
+    if (row.alguno !== false) throw new Error('No se apagaron los jugos con naranja');
+  });
+  await paso(t, 'tienda-regresa-naranja', async () => {
+    await t.getByLabel('Buscar producto u opción').fill('naranja');
+    await t.getByRole('switch', { name: /^Naranja: Agotado/ }).filter({ visible: true }).first().click();
+    await visible(t, 'Ya hay Naranja');
+    // Jugo Verde lleva naranja pero se había agotado por otra razón: sale
+    // en la lista SIN marcar; los que se apagaron con la naranja, marcados.
+    if (await t.getByRole('checkbox', { name: 'Jugo Verde' }).isChecked()) {
+      throw new Error('Jugo Verde venía marcado para encender');
+    }
+    await t.screenshot({ path: join(here, 'capturas', `${String(n).padStart(2, '0')}b-cascada.png`) });
+    await t.getByTestId('cascada-si').click();
+    await t.getByLabel('Buscar producto u opción').fill('');
+    let row;
+    for (let i = 0; i < 40; i += 1) {
+      [row] = await db`select bool_and(available) as todos from public.catalog_items where name in ('Viva Juice', 'Anti Flu')`;
+      if (row.todos === true) break;
+      await t.waitForTimeout(250);
+    }
+    if (row.todos !== true) throw new Error('No se volvieron a encender');
+  });
   await paso(t, 'tienda-pausa-pedidos', async () => {
     await boton(t, 'Pausar pedidos').click();
     await visible(t, '¿Pausar los pedidos de la app?');

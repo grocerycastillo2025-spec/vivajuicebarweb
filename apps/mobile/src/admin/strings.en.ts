@@ -363,6 +363,13 @@ export const adminEn: AdminStrings = {
     },
     failed: 'Couldn’t save. Check your connection and try again.',
     noCategory: 'No category',
+    cascadeOffTitle: (name: string): string => `${name} is also used in these. Turn them off too?`,
+    cascadeOnTitle: (name: string): string => `${name} is back. Turn these back on too?`,
+    cascadeHint: 'Based on each product’s description. Uncheck what doesn’t apply.',
+    cascadeOptions: 'The same option in other groups',
+    cascadeOffYes: (n: number): string => `Turn off too (${n})`,
+    cascadeOnYes: (n: number): string => `Turn on too (${n})`,
+    cascadeOnlyThis: 'Only the option',
   },
 
   team: {

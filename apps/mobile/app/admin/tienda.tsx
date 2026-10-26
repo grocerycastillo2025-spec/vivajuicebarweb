@@ -14,7 +14,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Modal, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
 import {
   fetchFloor,
@@ -32,11 +32,32 @@ import { AdminShell, Card, Notice, createAdminStyles } from '../../src/admin/ui'
 import { DataState } from '../../src/components/DataState';
 import { Button } from '../../src/components/ui';
 import type { BrandColors } from '../../src/domain/branding';
+import { itemsUsing, sameOptionElsewhere } from '../../src/domain/ingredients';
 import { useAsync } from '../../src/hooks/use-async';
 import { useColors } from '../../src/state/branding-context';
 import { radius, spacing, type as typography } from '../../src/theme';
 
 const t = adminStrings.floor;
+
+// Qué se apagó junto con cada opción ("Naranja" → Viva Juice, Anti Flu…),
+// para que al volver a encenderla se sugiera re-encender ESO y no lo que
+// estaba apagado por otra razón. Vive en este navegador.
+type CascadeMemory = Record<string, string[]>;
+function readMemory(storeId: string): CascadeMemory {
+  try {
+    const raw = globalThis.localStorage?.getItem(`juicebar.cascada.${storeId}`);
+    return raw ? (JSON.parse(raw) as CascadeMemory) : {};
+  } catch {
+    return {};
+  }
+}
+function writeMemory(storeId: string, memory: CascadeMemory): void {
+  try {
+    globalThis.localStorage?.setItem(`juicebar.cascada.${storeId}`, JSON.stringify(memory));
+  } catch {
+    // navegador privado: solo no se recuerda
+  }
+}
 
 /** Sin acentos ni mayúsculas, para buscar "pina" y encontrar "Piña". */
 function plain(text: string): string {
@@ -56,6 +77,15 @@ export default function AdminStoreScreen(): ReactNode {
 
   // Lo que se cambió en esta pantalla, encima de lo leído.
   const [overrides, setOverrides] = useState<Record<string, boolean>>({});
+  // Al apagar/encender una opción: qué más se sugiere cambiar (ingredientes).
+  const [cascade, setCascade] = useState<{
+    optionId: string;
+    optionName: string;
+    next: boolean;
+    items: { id: string; name: string }[];
+    options: { id: string; name: string; group: string }[];
+    picked: Record<string, boolean>;
+  } | null>(null);
   const [accepting, setAccepting] = useState<boolean>(store.pickup_enabled !== false);
   const [confirmingPause, setConfirmingPause] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -72,6 +102,46 @@ export default function AdminStoreScreen(): ReactNode {
       setOverrides((o) => ({ ...o, [key]: !next }));
       setFailure(cause instanceof Error && cause.message.includes('.sql') ? cause.message : t.failed);
     }
+  };
+
+  const availableNow = (key: string, base: boolean): boolean => overrides[key] ?? base;
+
+  const flipOption = (id: string, next: boolean): void => {
+    void flip(`m:${id}`, next, () => setOptionAvailable(id, next));
+    if (data === null) return;
+    const option = data.floor.options.find((o) => o.id === id);
+    if (option === undefined) return;
+    const itemIds = new Set(itemsUsing(option, data.floor.items));
+    const optionIds = new Set(sameOptionElsewhere(option, data.floor.options));
+    // Solo lo que de verdad cambiaría (apagar lo encendido / encender lo apagado).
+    const items = data.floor.items
+      .filter((i) => itemIds.has(i.id) && availableNow(`i:${i.id}`, i.available) !== next)
+      .map((i) => ({ id: i.id, name: i.name }));
+    const options = data.floor.options
+      .filter((o) => optionIds.has(o.id) && availableNow(`m:${o.id}`, o.available) !== next)
+      .map((o) => ({ id: o.id, name: o.name, group: o.groupName }));
+    if (items.length === 0 && options.length === 0) return;
+    // Al apagar se marca todo; al encender, solo lo que se apagó junto con esta opción.
+    const remembered = new Set(readMemory(store.id)[id] ?? []);
+    const picked: Record<string, boolean> = {};
+    for (const i of items) picked[`i:${i.id}`] = !next || remembered.has(`i:${i.id}`);
+    for (const o of options) picked[`m:${o.id}`] = !next || remembered.has(`m:${o.id}`);
+    setCascade({ optionId: id, optionName: option.name, next, items, options, picked });
+  };
+
+  const applyCascade = (): void => {
+    if (cascade === null) return;
+    const { next, picked, optionId } = cascade;
+    const memory = readMemory(store.id);
+    if (next) delete memory[optionId];
+    else memory[optionId] = Object.entries(picked).filter(([, on]) => on).map(([key]) => key);
+    writeMemory(store.id, memory);
+    for (const [key, on] of Object.entries(picked)) {
+      if (!on) continue;
+      const id = key.slice(2);
+      void flip(key, next, () => (key.startsWith('i:') ? setItemAvailable(id, next) : setOptionAvailable(id, next)));
+    }
+    setCascade(null);
   };
 
   const changeAccepting = async (next: boolean): Promise<void> => {
@@ -144,15 +214,81 @@ export default function AdminStoreScreen(): ReactNode {
         </View>
         <View style={styles.column}>
           <Options data={data.floor} overrides={overrides} query={query} styles={styles}
-            onFlip={(id, next) => void flip(`m:${id}`, next, () => setOptionAvailable(id, next))} />
+            onFlip={flipOption} />
           <Activity rows={data.activity} styles={styles} />
         </View>
       </View>
+
+      <Modal visible={cascade !== null} transparent animationType="fade" onRequestClose={() => setCascade(null)}>
+        <View style={styles.backdrop}>
+          {cascade !== null ? (
+            <View style={styles.sheet} testID="cascada">
+              <Text style={styles.sheetTitle}>
+                {cascade.next ? t.cascadeOnTitle(cascade.optionName) : t.cascadeOffTitle(cascade.optionName)}
+              </Text>
+              <Text style={styles.hint}>{t.cascadeHint}</Text>
+              <ScrollView style={styles.sheetList}>
+                {cascade.items.length > 0 ? <Text style={styles.groupTitle}>{t.products}</Text> : null}
+                {cascade.items.map((i) => (
+                  <Check key={i.id} label={i.name} checked={cascade.picked[`i:${i.id}`] === true} styles={styles}
+                    onToggle={() => setCascade({ ...cascade, picked: { ...cascade.picked, [`i:${i.id}`]: !cascade.picked[`i:${i.id}`] } })} />
+                ))}
+                {cascade.options.length > 0 ? <Text style={styles.groupTitle}>{t.cascadeOptions}</Text> : null}
+                {cascade.options.map((o) => (
+                  <Check key={o.id} label={`${o.name} · ${o.group}`} checked={cascade.picked[`m:${o.id}`] === true} styles={styles}
+                    onToggle={() => setCascade({ ...cascade, picked: { ...cascade.picked, [`m:${o.id}`]: !cascade.picked[`m:${o.id}`] } })} />
+                ))}
+              </ScrollView>
+              <View style={styles.sheetActions}>
+                <Button
+                  label={(cascade.next ? t.cascadeOnYes : t.cascadeOffYes)(Object.values(cascade.picked).filter(Boolean).length)}
+                  disabled={!Object.values(cascade.picked).some(Boolean)}
+                  onPress={applyCascade}
+                  testID="cascada-si"
+                />
+                <Button
+                  label={t.cascadeOnlyThis}
+                  variant="outline"
+                  onPress={() => {
+                    if (cascade.next) {
+                      const memory = readMemory(store.id);
+                      delete memory[cascade.optionId];
+                      writeMemory(store.id, memory);
+                    }
+                    setCascade(null);
+                  }}
+                  testID="cascada-no"
+                />
+              </View>
+            </View>
+          ) : null}
+        </View>
+      </Modal>
     </AdminShell>
   );
 }
 
 type Styles = ReturnType<typeof createStyles> & ReturnType<typeof createAdminStyles>;
+
+function Check({
+  label,
+  checked,
+  onToggle,
+  styles,
+}: {
+  readonly label: string;
+  readonly checked: boolean;
+  readonly onToggle: () => void;
+  readonly styles: Styles;
+}): ReactNode {
+  const colors = useColors();
+  return (
+    <Pressable accessibilityRole="checkbox" accessibilityState={{ checked }} accessibilityLabel={label} onPress={onToggle} style={styles.checkRow}>
+      <Ionicons name={checked ? 'checkbox' : 'square-outline'} size={24} color={checked ? colors.primary : colors.textMuted} />
+      <Text style={styles.rowName}>{label}</Text>
+    </Pressable>
+  );
+}
 
 function Row({
   name,
@@ -325,6 +461,20 @@ function createStyles(colors: BrandColors) {
     rowNameOff: { color: colors.textMuted, textDecorationLine: 'line-through' },
     soldOutTag: { color: colors.danger, fontSize: typography.caption.fontSize, fontWeight: '800' },
     offCount: { color: colors.danger, fontSize: typography.label.fontSize, fontWeight: '800' },
+    backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: spacing.lg },
+    sheet: {
+      width: '100%',
+      maxWidth: 520,
+      maxHeight: '90%',
+      backgroundColor: colors.surface,
+      borderRadius: radius.lg,
+      padding: spacing.lg,
+      gap: spacing.sm,
+    },
+    sheetTitle: { color: colors.text, fontSize: typography.section.fontSize, fontWeight: '800' },
+    sheetList: { flexGrow: 0, maxHeight: 360 },
+    sheetActions: { gap: spacing.sm, marginTop: spacing.sm },
+    checkRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, minHeight: 44 },
     activityRow: { color: colors.text, fontSize: typography.label.fontSize, lineHeight: 20 },
     activityWhen: { color: colors.textMuted, fontWeight: '700' },
   });

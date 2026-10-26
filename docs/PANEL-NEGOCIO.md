@@ -59,7 +59,11 @@ queda al menos un dueño.
   con su botón (pausar pide confirmación). Abajo, todos los productos y
   opciones (leches, frutas, extras) con su interruptor
   **Disponible / Agotado** y un buscador. Al lado, **Últimos cambios**:
-  quién agotó, encendió o pausó y cuándo. El cliente ve el aviso de pausa
+  quién agotó, encendió o pausó y cuándo. Al apagar una **opción** (ej.
+  Naranja) pregunta qué productos la llevan (según su descripción) y si la
+  misma opción está en otros grupos, todo marcado para apagarlo también;
+  al volver a encenderla ofrece re-encender lo que se apagó con ella (lo
+  que estaba agotado por otra razón sale sin marcar). El cliente ve el aviso de pausa
   en Inicio, Menú y al pagar (no deja hacer el pedido), y los agotados
   en gris.
 - **Menú**: categorías y productos con nombre y descripción en inglés y en
