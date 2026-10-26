@@ -17,6 +17,7 @@ export const adminEs = {
     business: 'Negocio',
   },
   backToApp: 'Ver la app',
+  signOut: 'Cerrar sesión',
   signInTitle: 'Entra al panel',
   signInBody: 'Usa el correo con el que te dieron de alta como dueño o empleado.',
   notMemberTitle: 'Esta cuenta no administra el negocio',

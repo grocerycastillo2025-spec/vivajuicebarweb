@@ -5,7 +5,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -14,12 +14,14 @@ import {
   Text,
   TextInput,
   View,
+  useWindowDimensions,
   type KeyboardTypeOptions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import type { BrandColors } from '../domain/branding';
 import { useBranding, useColors } from '../state/branding-context';
+import { useSession } from '../state/session-context';
 import { radius, spacing, type as typography } from '../theme';
 import { useAdmin } from './admin-context';
 import { setAdminLanguage, useAdminLanguage } from './language';
@@ -54,6 +56,22 @@ export function AdminShell({
   const { displayName } = useBranding();
   const { isOwner, store } = useAdmin();
   const lang = useAdminLanguage();
+  const { user, signOut } = useSession();
+  const { width } = useWindowDimensions();
+  // En teléfono los botones del encabezado quedan solo con su ícono.
+  const compact = width < 640;
+  const [leaving, setLeaving] = useState(false);
+
+  // La sesión es la misma en la app y en el panel: salir aquí sale de las dos.
+  const leave = async (): Promise<void> => {
+    setLeaving(true);
+    try {
+      await signOut();
+    } finally {
+      setLeaving(false);
+      router.replace('/profile');
+    }
+  };
 
   const active = (href: string): boolean =>
     href === '/admin'
@@ -72,6 +90,11 @@ export function AdminShell({
             <Text style={styles.brand} numberOfLines={1}>
               {store.name === displayName ? displayName : `${displayName} · ${store.name}`}
             </Text>
+            {user?.email ? (
+              <Text style={styles.who} numberOfLines={1} testID="panel-quien">
+                {user.email} · {isOwner ? t.team.owner : t.team.staff}
+              </Text>
+            ) : null}
           </View>
           <View style={styles.langSwitch} accessibilityRole="radiogroup" accessibilityLabel={t.language}>
             {(['es', 'en'] as const).map((code) => (
@@ -90,11 +113,23 @@ export function AdminShell({
           </View>
           <Pressable
             accessibilityRole="link"
+            accessibilityLabel={t.backToApp}
             onPress={() => router.replace('/')}
             style={({ pressed }) => [styles.backLink, pressed && styles.pressed]}
           >
             <Ionicons name="phone-portrait-outline" size={16} color={colors.onPrimary} />
-            <Text style={styles.backLinkText}>{t.backToApp}</Text>
+            {compact ? null : <Text style={styles.backLinkText}>{t.backToApp}</Text>}
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t.signOut}
+            disabled={leaving}
+            onPress={() => void leave()}
+            testID="panel-salir"
+            style={({ pressed }) => [styles.backLink, pressed && styles.pressed]}
+          >
+            <Ionicons name="log-out-outline" size={16} color={colors.onPrimary} />
+            {compact ? null : <Text style={styles.backLinkText}>{t.signOut}</Text>}
           </Pressable>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
@@ -310,6 +345,7 @@ export function createAdminStyles(colors: BrandColors) {
       letterSpacing: 0.8,
     },
     brand: { color: colors.onPrimary, fontSize: typography.section.fontSize, fontWeight: '800' },
+    who: { color: colors.onPrimary, opacity: 0.8, fontSize: typography.caption.fontSize + 1 },
     backLink: {
       flexDirection: 'row',
       alignItems: 'center',

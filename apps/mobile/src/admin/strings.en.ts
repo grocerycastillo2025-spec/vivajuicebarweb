@@ -17,6 +17,7 @@ export const adminEn: AdminStrings = {
     business: 'Business',
   },
   backToApp: 'View the app',
+  signOut: 'Sign out',
   signInTitle: 'Sign in to the panel',
   signInBody: 'Use the email you were added with as owner or staff.',
   notMemberTitle: 'This account doesn’t manage the business',

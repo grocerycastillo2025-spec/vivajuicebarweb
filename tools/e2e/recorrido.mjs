@@ -539,7 +539,25 @@ try {
     await visible(l, 'Tienda');
     if (await l.getByRole('tab', { name: 'Negocio' }).filter({ visible: true }).count()) throw new Error('Luis ve Negocio');
     await l.screenshot({ path: join(here, 'capturas', `${String(n).padStart(2, '0')}b-luis-tienda.png`) });
+    await visible(l, 'luis@vivajuice.test · Tienda');
+    // Cerrar sesión desde el panel cierra también la app.
+    await l.getByTestId('panel-salir').click();
+    await visible(l, 'Inicia sesión');
+    await l.goto(`${APP}admin`);
+    await visible(l, 'Entra al panel');
     await l.close();
+  });
+  await paso(d, 'panel-en-telefono', async () => {
+    const p = await nuevaPagina({ locale: 'es-US' });
+    await p.goto(`${APP}profile`);
+    await p.getByRole('button', { name: 'Cerrar' }).first().click({ timeout: 5000 }).catch(() => {});
+    await p.getByPlaceholder('Correo').fill('duena@vivajuice.test');
+    await p.getByPlaceholder('Contraseña').fill('clave-segura-1');
+    await boton(p, 'Entrar').click();
+    await boton(p, 'Abrir el panel').click();
+    await p.getByRole('button', { name: 'Cerrar sesión' }).filter({ visible: true }).first().waitFor();
+    await p.screenshot({ path: join(here, 'capturas', `${String(n).padStart(2, '0')}b-panel-telefono.png`) });
+    await p.close();
   });
   await paso(d, 'qr-de-la-app', async () => {
     await d.goto(`${APP}admin/business`);
