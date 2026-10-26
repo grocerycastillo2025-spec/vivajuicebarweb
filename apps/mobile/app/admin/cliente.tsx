@@ -17,21 +17,20 @@ import { StyleSheet, Text, View } from 'react-native';
 import { addVisit, giveReward, lookupCard } from '../../src/api/loyalty';
 import { MISSING_SQL_FILE } from '../../src/api/new-columns';
 import { useAdmin } from '../../src/admin/admin-context';
+import { adminLocale, getAdminLanguage } from '../../src/admin/language';
 import { adminStrings } from '../../src/admin/strings';
 import { AdminShell, Card, Notice, createAdminStyles } from '../../src/admin/ui';
 import { DataState } from '../../src/components/DataState';
 import { Button } from '../../src/components/ui';
 import type { BrandColors } from '../../src/domain/branding';
 import { formatCard, parseCardError, parseCardPayload, progressTo, rewardLabel, type CardState } from '../../src/domain/loyalty-card';
-import { moneyDefaults } from '../../src/domain/money';
 import { useColors } from '../../src/state/branding-context';
 import { radius, spacing, type as typography } from '../../src/theme';
 
 const t = adminStrings.loyalty;
-const ADMIN_LANG = 'es';
 
 function when(iso: string | Date): string {
-  return new Date(iso).toLocaleString(moneyDefaults().locale, {
+  return new Date(iso).toLocaleString(adminLocale(), {
     weekday: 'short',
     day: 'numeric',
     month: 'short',
@@ -193,7 +192,7 @@ export default function AdminCustomerCardScreen(): ReactNode {
         <View style={styles.column}>
           <Card title={t.rewardsTitle}>
             {state.rewards.length === 0 ? <Text style={styles.hint}>{t.noRewards}</Text> : null}
-            {state.rewards.map((r) => ({ ...r, name: rewardLabel(r, ADMIN_LANG) })).map((reward) => (
+            {state.rewards.map((r) => ({ ...r, name: rewardLabel(r, getAdminLanguage()) })).map((reward) => (
               <View key={reward.id} style={[styles.reward, reward.eligible && styles.rewardReady]}>
                 <View style={styles.rewardRow}>
                   <Ionicons

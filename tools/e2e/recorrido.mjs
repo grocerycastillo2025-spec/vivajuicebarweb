@@ -427,6 +427,21 @@ try {
     await d.getByRole('radio', { name: 'Hoy' }).click();
     await visible(d, 'Pedidos por hora');
   });
+  await paso(d, 'panel-en-ingles', async () => {
+    await d.getByTestId('panel-idioma-en').click();
+    await visible(d, 'At a glance');
+    await visible(d, 'Sales by day');
+    await visible(d, 'Loyalty');
+    await d.goto(`${APP}admin/tienda`);
+    // Se recuerda al navegar; los productos salen con su nombre en inglés.
+    await visible(d, 'Taking orders');
+    await visible(d, 'Green Juice');
+  });
+  await paso(d, 'panel-de-vuelta-en-espanol', async () => {
+    await d.getByTestId('panel-idioma-es').click();
+    await visible(d, 'Recibiendo pedidos');
+    await visible(d, 'Jugo Verde');
+  });
   await paso(d, 'qr-de-la-app', async () => {
     await d.goto(`${APP}admin/business`);
     await visible(d, 'QR de la app');

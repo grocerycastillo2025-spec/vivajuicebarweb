@@ -23,7 +23,7 @@ import { DataState } from '../../src/components/DataState';
 import { Screen } from '../../src/components/Screen';
 import { Button } from '../../src/components/ui';
 import { readEnv } from '../../src/env';
-import { es as strings } from '../../src/strings';
+import { panelAppStrings as strings, useAdminLanguage } from '../../src/admin/language';
 import { useAsync } from '../../src/hooks/use-async';
 import { useColors } from '../../src/state/branding-context';
 import { useSession } from '../../src/state/session-context';
@@ -46,6 +46,7 @@ function useWideLayout(): void {
 export default function AdminLayout(): ReactNode {
   useWideLayout();
   const colors = useColors();
+  const lang = useAdminLanguage();
   const { user, loading: sessionLoading, signOut } = useSession();
   const [attempt, setAttempt] = useState(0);
 
@@ -141,7 +142,7 @@ export default function AdminLayout(): ReactNode {
 
   return (
     <AdminProvider value={value}>
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }} />
+      <Stack key={lang} screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }} />
     </AdminProvider>
   );
 }

@@ -28,12 +28,12 @@ import {
 import { useAdmin } from '../../src/admin/admin-context';
 import { CardCodeInput } from '../../src/admin/CardCodeInput';
 import { appPublicUrl, printVisitQr, qrDataUrl } from '../../src/admin/qr';
+import { adminLocale, getAdminLanguage } from '../../src/admin/language';
 import { adminStrings } from '../../src/admin/strings';
 import { AdminShell, Card, Field, Notice, Toggle, createAdminStyles } from '../../src/admin/ui';
 import { DataState } from '../../src/components/DataState';
 import { Button } from '../../src/components/ui';
 import type { BrandColors } from '../../src/domain/branding';
-import { moneyDefaults } from '../../src/domain/money';
 import { rewardLabel } from '../../src/domain/loyalty-card';
 import { buildVisitUrl, normalizeRedemptionCode, parseUseRedemptionError } from '../../src/domain/visit';
 import { useAsync } from '../../src/hooks/use-async';
@@ -43,7 +43,7 @@ import { radius, spacing, type as typography } from '../../src/theme';
 const t = adminStrings.loyalty;
 
 function when(iso: string): string {
-  return new Date(iso).toLocaleString(moneyDefaults().locale, {
+  return new Date(iso).toLocaleString(adminLocale(), {
     day: 'numeric',
     month: 'short',
     hour: 'numeric',
@@ -98,7 +98,7 @@ export default function AdminLoyaltyScreen(): ReactNode {
               <View key={r.id} style={styles.row}>
                 <View style={styles.rowBody}>
                   <Text style={styles.rowTitle}>
-                    {rewardLabel({ name: r.reward_name ?? '', i18n: r.reward_i18n }, 'es')}
+                    {rewardLabel({ name: r.reward_name ?? '', i18n: r.reward_i18n }, getAdminLanguage())}
                     {r.customer !== null ? ` → ${r.customer}` : ''}
                   </Text>
                   <Text style={styles.hint}>

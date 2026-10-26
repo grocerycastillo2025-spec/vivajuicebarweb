@@ -26,12 +26,12 @@ import {
   type StoreActivity,
 } from '../../src/api/admin';
 import { useAdmin } from '../../src/admin/admin-context';
+import { adminLocale, getAdminLanguage } from '../../src/admin/language';
 import { adminStrings } from '../../src/admin/strings';
 import { AdminShell, Card, Notice, createAdminStyles } from '../../src/admin/ui';
 import { DataState } from '../../src/components/DataState';
 import { Button } from '../../src/components/ui';
 import type { BrandColors } from '../../src/domain/branding';
-import { moneyDefaults } from '../../src/domain/money';
 import { useAsync } from '../../src/hooks/use-async';
 import { useColors } from '../../src/state/branding-context';
 import { radius, spacing, type as typography } from '../../src/theme';
@@ -49,7 +49,7 @@ export default function AdminStoreScreen(): ReactNode {
   const styles = useMemo(() => ({ ...createAdminStyles(colors), ...createStyles(colors) }), [colors]);
 
   const load = useCallback(async () => {
-    const [floor, activity] = await Promise.all([fetchFloor(store.id), fetchStoreActivity(restaurantId)]);
+    const [floor, activity] = await Promise.all([fetchFloor(store.id, getAdminLanguage()), fetchStoreActivity(restaurantId)]);
     return { floor, activity };
   }, [store.id, restaurantId]);
   const { data, error, loading, reload, refresh } = useAsync(load, [store.id]);
@@ -269,7 +269,7 @@ function Activity({ rows, styles }: { readonly rows: readonly StoreActivity[]; r
       {rows.map((row, i) => (
         <Text key={`${row.created_at}-${i}`} style={styles.activityRow}>
           <Text style={styles.activityWhen}>
-            {new Date(row.created_at).toLocaleString(moneyDefaults().locale, {
+            {new Date(row.created_at).toLocaleString(adminLocale(), {
               weekday: 'short', hour: 'numeric', minute: '2-digit',
             })}
           </Text>

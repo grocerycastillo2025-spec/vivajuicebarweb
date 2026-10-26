@@ -20,6 +20,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { MISSING_SQL_FILE } from '../../src/api/new-columns';
 import { useAdmin } from '../../src/admin/admin-context';
+import { adminLocale, getAdminLanguage } from '../../src/admin/language';
 import { adminStrings } from '../../src/admin/strings';
 import { AdminShell, Card, Notice, createAdminStyles } from '../../src/admin/ui';
 import { DataState } from '../../src/components/DataState';
@@ -37,7 +38,7 @@ import {
   type Change,
   type HeatCell,
 } from '../../src/domain/insights';
-import { formatMoney, moneyDefaults } from '../../src/domain/money';
+import { formatMoney } from '../../src/domain/money';
 import { dayKey } from '../../src/domain/pickup';
 import { useAsync } from '../../src/hooks/use-async';
 import { useColors } from '../../src/state/branding-context';
@@ -45,7 +46,6 @@ import { getSupabase } from '../../src/supabase';
 import { radius, spacing, type as typography } from '../../src/theme';
 
 const t = adminStrings.stats;
-const LANG: 'es' | 'en' = 'es';
 
 type Range = '1' | '7' | '30' | '90';
 
@@ -81,7 +81,7 @@ function shiftDay(key: string, days: number): string {
 }
 
 function shortDay(key: string): string {
-  return new Date(`${key}T12:00:00Z`).toLocaleDateString(moneyDefaults().locale, {
+  return new Date(`${key}T12:00:00Z`).toLocaleDateString(adminLocale(), {
     day: 'numeric',
     month: 'short',
     timeZone: 'UTC',
@@ -89,7 +89,7 @@ function shortDay(key: string): string {
 }
 
 function longDay(key: string): string {
-  return new Date(`${key}T12:00:00Z`).toLocaleDateString(moneyDefaults().locale, {
+  return new Date(`${key}T12:00:00Z`).toLocaleDateString(adminLocale(), {
     weekday: 'long',
     day: 'numeric',
     month: 'short',
@@ -171,7 +171,7 @@ export default function AdminStatsScreen(): ReactNode {
   const salesChange = prev === null ? null : percentChange(stats.revenue_cents, prev.revenue_cents);
   const topSold = (insights?.top_sold ?? stats.top_sold.map((r) => ({ ...r, name_es: null }))).map((r) => ({
     ...r,
-    label: (LANG === 'es' ? r.name_es : null) ?? r.name,
+    label: (getAdminLanguage() === 'es' ? r.name_es : null) ?? r.name,
   }));
 
   return (
@@ -257,7 +257,7 @@ export default function AdminStatsScreen(): ReactNode {
         <BarList
           rows={(insights?.top_viewed ?? stats.top_viewed.map((r) => ({ ...r, name_es: null }))).map((r) => ({
             key: r.name,
-            label: (LANG === 'es' ? r.name_es : null) ?? r.name,
+            label: (getAdminLanguage() === 'es' ? r.name_es : null) ?? r.name,
             value: r.views,
             detail: t.views(r.views),
           }))}
@@ -332,7 +332,7 @@ function Summary({
         lines.push({
           icon: 'time-outline',
           text: t.sumPeak(
-            `${hourLabel(hour, LANG)} – ${hourLabel((hour + 1) % 24, LANG)}`,
+            `${hourLabel(hour, getAdminLanguage())} – ${hourLabel((hour + 1) % 24, getAdminLanguage())}`,
             stats.by_day.length >= 7 && dow !== null ? (t.weekdaysLong[dow] ?? null) : null,
           ),
         });
@@ -487,7 +487,7 @@ function HourChart({
     <View style={styles.chart}>
       <View style={styles.chartPlot}>
         {slice.map((n, i) => (
-          <View key={from + i} style={styles.chartSlot} accessibilityLabel={`${hourLabel(from + i, LANG)}: ${n}`}>
+          <View key={from + i} style={styles.chartSlot} accessibilityLabel={`${hourLabel(from + i, getAdminLanguage())}: ${n}`}>
             {n > 0 ? <Text style={styles.barValue}>{n}</Text> : null}
             <View
               style={[
@@ -502,7 +502,7 @@ function HourChart({
       <View style={styles.chartAxis}>
         {slice.map((_, i) => (
           <Text key={from + i} style={styles.chartTick} numberOfLines={1}>
-            {(from + i) % 3 === 0 ? hourLabel(from + i, LANG).replace(' ', ' ') : ''}
+            {(from + i) % 3 === 0 ? hourLabel(from + i, getAdminLanguage()).replace(' ', ' ') : ''}
           </Text>
         ))}
       </View>
@@ -544,7 +544,7 @@ function Heatmap({
             return (
               <View
                 key={h}
-                accessibilityLabel={`${t.weekdaysLong[dow]} ${hourLabel(h, LANG)}: ${t.ordersShort(n)}`}
+                accessibilityLabel={`${t.weekdaysLong[dow]} ${hourLabel(h, getAdminLanguage())}: ${t.ordersShort(n)}`}
                 style={[
                   styles.heatCell,
                   n > 0
@@ -562,7 +562,6 @@ function Heatmap({
           <View key={o} style={[styles.heatLegendCell, { backgroundColor: colors.primary, opacity: o }]} />
         ))}
         <Text style={styles.readoutHint}>{t.heatMore}</Text>
-        <Text style={styles.readoutHint}>· a. m. / p. m.</Text>
       </View>
     </View>
   );

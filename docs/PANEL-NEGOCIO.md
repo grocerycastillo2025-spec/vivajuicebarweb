@@ -8,7 +8,7 @@ Supabase y los maneja el dueño desde `/admin`, dentro de la misma app.
 |---|---|
 | Moneda | USD (`app.json` → `extra.currency`) |
 | Idioma del cliente | Inglés o español, a elección (Inicio: botón ES/EN; Perfil: Idioma). La primera vez se toma el idioma del teléfono. `?lang=es` en la liga lo fuerza. |
-| Idioma del panel | Español |
+| Idioma del panel | Español o inglés: botón ES/EN arriba a la derecha del panel (se recuerda en ese navegador) |
 | Zona horaria | America/New_York |
 | Alta y menú base | `supabase/seed/viva_juice_us.sql` (va dentro de `entregas/01-base-viva-juice.sql`) |
 

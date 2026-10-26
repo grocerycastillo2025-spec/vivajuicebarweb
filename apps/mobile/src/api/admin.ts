@@ -649,7 +649,7 @@ export interface FloorData {
 }
 
 /** Todo el catálogo de la sucursal con su estado, en español si hay traducción. */
-export async function fetchFloor(storeId: string): Promise<FloorData> {
+export async function fetchFloor(storeId: string, lang: 'es' | 'en' = 'es'): Promise<FloorData> {
   const supabase = getSupabase();
   const query = (withI18n: boolean) =>
     Promise.all([
@@ -674,12 +674,13 @@ export async function fetchFloor(storeId: string): Promise<FloorData> {
   fail(cats.error);
   fail(items.error);
   fail(mods.error);
-  const es = (base: string, i18n: unknown): string => spanish(i18n, 'name') || base;
+  // Nombres en el idioma del panel (el texto base es inglés).
+  const es = (base: string, i18n: unknown): string => (lang === 'es' ? spanish(i18n, 'name') || base : base);
   return {
     categories: (cats.data ?? []).map((c) => ({ id: c.id, name: es(c.name, c.i18n), sort: c.sort_order })),
     items: (items.data ?? [])
       .map((i) => ({ id: i.id, name: es(i.name, i.i18n), categoryId: i.category_id, available: i.available }))
-      .sort((a, b) => a.name.localeCompare(b.name, 'es')),
+      .sort((a, b) => a.name.localeCompare(b.name, lang)),
     options: (mods.data ?? [])
       .slice()
       .sort((a, b) =>

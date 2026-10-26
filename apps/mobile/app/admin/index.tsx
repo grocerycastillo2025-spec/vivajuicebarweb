@@ -44,7 +44,7 @@ import { dayKey, formatSlotLabel, partsInZone } from '../../src/domain/pickup';
 import { useAsync } from '../../src/hooks/use-async';
 import { useInterval } from '../../src/hooks/use-interval';
 import { useColors } from '../../src/state/branding-context';
-import { es as strings } from '../../src/strings';
+import { panelAppStrings as strings } from '../../src/admin/language';
 import { radius, spacing, type as typography } from '../../src/theme';
 
 const LIVE_COLUMNS: readonly OrderColumn[] = ['new', 'preparing', 'ready'];

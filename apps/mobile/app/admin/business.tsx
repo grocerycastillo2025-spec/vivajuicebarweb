@@ -55,7 +55,7 @@ import {
 } from '../../src/domain/payment-options';
 import { checkProvider } from '../../src/api/online-payments';
 import { useAsync } from '../../src/hooks/use-async';
-import { es as strings } from '../../src/strings';
+import { panelAppStrings as strings } from '../../src/admin/language';
 import { useBranding, useColors } from '../../src/state/branding-context';
 import { useSession } from '../../src/state/session-context';
 import { radius, spacing, type as typography } from '../../src/theme';

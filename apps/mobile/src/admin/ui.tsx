@@ -22,18 +22,19 @@ import type { BrandColors } from '../domain/branding';
 import { useBranding, useColors } from '../state/branding-context';
 import { radius, spacing, type as typography } from '../theme';
 import { useAdmin } from './admin-context';
+import { setAdminLanguage, useAdminLanguage } from './language';
 import { adminStrings as t } from './strings';
 
-type Tab = { readonly href: '/admin' | '/admin/tienda' | '/admin/menu' | '/admin/historias' | '/admin/estadisticas' | '/admin/lealtad' | '/admin/business'; readonly label: string; readonly icon: keyof typeof Ionicons.glyphMap; readonly ownerOnly: boolean };
+type Tab = { readonly href: '/admin' | '/admin/tienda' | '/admin/menu' | '/admin/historias' | '/admin/estadisticas' | '/admin/lealtad' | '/admin/business'; readonly label: keyof typeof t.tabs; readonly icon: keyof typeof Ionicons.glyphMap; readonly ownerOnly: boolean };
 
 const TABS: readonly Tab[] = [
-  { href: '/admin', label: t.tabs.orders, icon: 'receipt-outline', ownerOnly: false },
-  { href: '/admin/tienda', label: t.tabs.store, icon: 'toggle-outline', ownerOnly: false },
-  { href: '/admin/menu', label: t.tabs.menu, icon: 'restaurant-outline', ownerOnly: true },
-  { href: '/admin/historias', label: t.tabs.stories, icon: 'images-outline', ownerOnly: true },
-  { href: '/admin/estadisticas', label: t.tabs.stats, icon: 'stats-chart-outline', ownerOnly: true },
-  { href: '/admin/lealtad', label: t.tabs.loyalty, icon: 'gift-outline', ownerOnly: false },
-  { href: '/admin/business', label: t.tabs.business, icon: 'storefront-outline', ownerOnly: true },
+  { href: '/admin', label: 'orders', icon: 'receipt-outline', ownerOnly: false },
+  { href: '/admin/tienda', label: 'store', icon: 'toggle-outline', ownerOnly: false },
+  { href: '/admin/menu', label: 'menu', icon: 'restaurant-outline', ownerOnly: true },
+  { href: '/admin/historias', label: 'stories', icon: 'images-outline', ownerOnly: true },
+  { href: '/admin/estadisticas', label: 'stats', icon: 'stats-chart-outline', ownerOnly: true },
+  { href: '/admin/lealtad', label: 'loyalty', icon: 'gift-outline', ownerOnly: false },
+  { href: '/admin/business', label: 'business', icon: 'storefront-outline', ownerOnly: true },
 ];
 
 export function AdminShell({
@@ -52,6 +53,7 @@ export function AdminShell({
   const pathname = usePathname();
   const { displayName } = useBranding();
   const { isOwner, store } = useAdmin();
+  const lang = useAdminLanguage();
 
   const active = (href: string): boolean =>
     href === '/admin'
@@ -70,6 +72,21 @@ export function AdminShell({
             <Text style={styles.brand} numberOfLines={1}>
               {store.name === displayName ? displayName : `${displayName} · ${store.name}`}
             </Text>
+          </View>
+          <View style={styles.langSwitch} accessibilityRole="radiogroup" accessibilityLabel={t.language}>
+            {(['es', 'en'] as const).map((code) => (
+              <Pressable
+                key={code}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: lang === code }}
+                accessibilityLabel={code === 'es' ? 'Español' : 'English'}
+                onPress={() => setAdminLanguage(code)}
+                testID={`panel-idioma-${code}`}
+                style={[styles.langOption, lang === code && styles.langOptionOn]}
+              >
+                <Text style={[styles.langText, lang === code && styles.langTextOn]}>{code.toUpperCase()}</Text>
+              </Pressable>
+            ))}
           </View>
           <Pressable
             accessibilityRole="link"
@@ -92,7 +109,7 @@ export function AdminShell({
                 style={({ pressed }) => [styles.tab, on && styles.tabOn, pressed && styles.pressed]}
               >
                 <Ionicons name={tab.icon} size={18} color={on ? colors.primary : colors.onPrimary} />
-                <Text style={[styles.tabText, on && styles.tabTextOn]}>{tab.label}</Text>
+                <Text style={[styles.tabText, on && styles.tabTextOn]}>{t.tabs[tab.label]}</Text>
               </Pressable>
             );
           })}
@@ -300,6 +317,18 @@ export function createAdminStyles(colors: BrandColors) {
       flexShrink: 0,
     },
     backLinkText: { color: colors.onPrimary, fontSize: typography.label.fontSize, fontWeight: '700' },
+    langSwitch: {
+      flexDirection: 'row',
+      borderRadius: radius.pill,
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.4)',
+      overflow: 'hidden',
+      flexShrink: 0,
+    },
+    langOption: { paddingHorizontal: spacing.md, paddingVertical: 6, minWidth: 44, alignItems: 'center' },
+    langOptionOn: { backgroundColor: colors.onPrimary },
+    langText: { color: colors.onPrimary, fontSize: typography.label.fontSize, fontWeight: '800' },
+    langTextOn: { color: colors.primary },
     tabs: { flexDirection: 'row', gap: spacing.xs, alignItems: 'flex-end' },
     tab: {
       flexDirection: 'row',

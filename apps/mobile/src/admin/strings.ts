@@ -5,7 +5,7 @@
 
 import type { OrderStatus } from '../domain/order';
 
-export const adminStrings = {
+export const adminEs = {
   title: 'Panel del negocio',
   tabs: {
     orders: 'Pedidos',
@@ -34,6 +34,7 @@ export const adminStrings = {
   confirmDelete: 'Sí, eliminar',
   edit: 'Editar',
   add: 'Agregar',
+  language: 'Idioma del panel',
 
   orders: {
     breakdown: (subtotal: string, tax: string, surcharge: string): string =>
@@ -110,7 +111,7 @@ export const adminStrings = {
     nameEs: 'Nombre en español',
     nameEsPlaceholder: 'Ej. Jugo verde',
     bilingualHint: 'El cliente ve la app en inglés o en español. Si dejas vacío el español, se muestra el inglés.',
-    price: 'Precio en dólares (con impuestos)',
+    price: 'Precio en dólares',
     pricePlaceholder: '8.50',
     priceInvalid: 'Escribe un precio válido, por ejemplo 8 o 8.50',
     nameRequired: 'Ponle nombre al producto',
@@ -494,4 +495,35 @@ export const adminStrings = {
     colorInvalid: 'Usa un color como #0E4A2B',
     brandNote: 'Los cambios de marca se ven en la app la próxima vez que se abra.',
   },
-} as const;
+};
+
+export type AdminStrings = typeof adminEs;
+
+/**
+ * Lo que leen las pantallas. Cada sección es un objeto propio (copia de la
+ * de español) que `useAdminLanguage` rellena en el idioma elegido SIN
+ * cambiar la referencia: así sirven también los `const t =
+ * adminStrings.loyalty` de arriba de cada archivo.
+ */
+export const adminStrings: AdminStrings = copySections(adminEs);
+
+function copySections<T extends object>(source: T): T {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(source)) {
+    out[key] = value !== null && typeof value === 'object' && !Array.isArray(value) ? { ...value } : value;
+  }
+  return out as T;
+}
+
+/** Pone los textos de `source` en `adminStrings`, sección por sección. */
+export function fillAdminStrings(source: AdminStrings): void {
+  const target = adminStrings as unknown as Record<string, unknown>;
+  for (const [key, value] of Object.entries(source)) {
+    const current = target[key];
+    if (current !== null && typeof current === 'object' && !Array.isArray(current) && typeof value === 'object') {
+      Object.assign(current, value);
+    } else {
+      target[key] = value;
+    }
+  }
+}
