@@ -71,13 +71,22 @@ jobs:
             psql -h localhost -U postgres -v ON_ERROR_STOP=1 -q -f "$f"
           done
 
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+
       # El archivo que el dueño pega en Supabase → SQL Editor: se arma de
       # nuevo y debe ser IDÉNTICO al versionado (nadie lo edita a mano), y se
       # corre DOS veces sobre una base que imita un proyecto recién creado.
       - name: Archivo de entrega al día
         run: |
-          node scripts/sql/armar-entrega.mjs /tmp/entrega.sql supabase/seed/viva_juice_us.sql
-          if ! diff -q /tmp/entrega.sql entregas/01-base-viva-juice.sql >/dev/null; then
+          mkdir -p /tmp/entrega
+          node scripts/sql/armar-entrega.mjs /tmp/entrega/01-base-viva-juice.sql supabase/seed/viva_juice_us.sql
+          if ! diff -q /tmp/entrega/01-base-viva-juice.sql entregas/01-base-viva-juice.sql >/dev/null; then
+            diff /tmp/entrega/01-base-viva-juice.sql entregas/01-base-viva-juice.sql | head -20
             echo "::error::entregas/01-base-viva-juice.sql no está al día. Corre: node scripts/sql/armar-entrega.mjs entregas/01-base-viva-juice.sql supabase/seed/viva_juice_us.sql"
             exit 1
           fi
@@ -88,13 +97,6 @@ jobs:
           PGUSER: postgres
           PGPASSWORD: postgres
         run: bash scripts/sql/probar-entrega.sh entregas/01-base-viva-juice.sql
-
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
 
       # Stripe y PayPal de punta a punta contra la base de la entrega, con
       # proveedores falsos: el SQL de las Edge Functions contra columnas reales.
