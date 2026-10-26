@@ -71,8 +71,8 @@
     },
     "extra": {
       "restaurantId": "11111111-1111-4111-8111-111111111111",
-      "supabaseUrl": "",
-      "supabaseKey": "",
+      "supabaseUrl": "https://ibvaxotffpekdpgnxzbr.supabase.co",
+      "supabaseKey": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlidmF4b3RmZnBla2RwZ254emJyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTI5Njk2ODMsImV4cCI6MjEwODU0NTY4M30.vbwvQ9evdizeCUE-nkFBrOuTj9VdorJuA3npYWJgOjY",
       "currency": "USD",
       "locale": "en-US"
     }
