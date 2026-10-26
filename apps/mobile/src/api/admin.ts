@@ -618,6 +618,41 @@ export async function addTeamMember(restaurantId: string, email: string, role: M
   fail(error);
 }
 
+/**
+ * Crea la cuenta (correo + contraseña temporal) y le da el rol, con la
+ * función `equipo`. Si la función no está publicada, avisa con
+ * `funcion_no_publicada` para que el panel ofrezca "Ya tiene cuenta".
+ */
+export async function createTeamAccount(
+  restaurantId: string,
+  input: { email: string; password: string; role: MemberRole; firstName: string },
+): Promise<{ created: boolean }> {
+  const { data, error } = await getSupabase().functions.invoke<{ ok: boolean; created: boolean }>('equipo', {
+    body: {
+      restaurant_id: restaurantId,
+      email: input.email.trim(),
+      password: input.password,
+      role: input.role,
+      first_name: input.firstName.trim(),
+    },
+  });
+  if (error !== null) {
+    const ctx = (error as { context?: Response }).context;
+    if (ctx?.status === 404) throw dataError('funcion_no_publicada');
+    let reason = error.message;
+    try {
+      const payload = (await ctx?.json?.()) as { error?: unknown } | undefined;
+      if (typeof payload?.error === 'string') reason = payload.error;
+    } catch {
+      // sin cuerpo legible
+    }
+    // Sin respuesta (función no publicada o sin red).
+    if (/Failed to send|fetch/i.test(reason)) reason = 'funcion_no_publicada';
+    throw dataError(reason);
+  }
+  return { created: data?.created === true };
+}
+
 export async function removeTeamMember(restaurantId: string, userId: string): Promise<void> {
   const { error } = await getSupabase().rpc('remove_team_member', {
     p_restaurant_id: restaurantId,

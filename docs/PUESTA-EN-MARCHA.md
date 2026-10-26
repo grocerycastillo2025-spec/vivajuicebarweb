@@ -41,7 +41,7 @@ dirección queda en
           '11111111-1111-4111-8111-111111111111', 'owner');
    ```
 3. El dueño recarga la app: en **Perfil** aparece **Panel del negocio**.
-   Las cuentas de **Tienda** (quien atiende el mostrador) se dan de alta desde ahí, sin SQL: la persona se registra en la app con su correo y luego el dueño, en Negocio → Equipo, escribe ese correo y elige **Tienda**.
+   Las cuentas de **Tienda** y otros **Dueños** se dan de alta desde ahí, sin SQL: Negocio → Equipo → **Crear cuenta nueva** (necesita la función `equipo` publicada, ver PAGOS.md) o **Ya tiene cuenta** si la persona ya se registró en la app.
 
 ## 5. Formas de pago
 

@@ -499,6 +499,41 @@ try {
     }
     if (s.latitude === null || !(Number(s.longitude) > -74.273871)) throw new Error(`No se guardó el punto: ${JSON.stringify(s)}`);
   });
+  let nuevaClave = '';
+  await paso(d, 'equipo-crear-cuenta-tienda', async () => {
+    await d.goto(`${APP}admin/business`);
+    await visible(d, 'Crear cuenta nueva');
+    await d.getByLabel('Nombre', { exact: true }).last().fill('Luis');
+    await d.getByLabel('Correo de la persona').fill('luis@vivajuice.test');
+    nuevaClave = await d.getByLabel('Contraseña temporal').inputValue();
+    if (!/^Viva-[A-Z]{4}-\d{4}$/.test(nuevaClave)) throw new Error(`Contraseña temporal rara: ${nuevaClave}`);
+    await d.getByTestId('crear-cuenta-equipo').click();
+    await visible(d, 'Cuenta lista. Pásale estos datos:');
+    await visible(d, 'luis@vivajuice.test');
+    const [m] = await db`select m.role from public.restaurant_members m join auth.users u on u.id = m.user_id
+                          where u.email = 'luis@vivajuice.test'`;
+    if (m?.role !== 'staff') throw new Error(`Rol de Luis: ${m?.role}`);
+  });
+  await paso(d, 'equipo-luis-entra-y-cambia-clave', async () => {
+    const l = await nuevaPagina({ locale: 'es-US', width: 1024, height: 768 });
+    await l.goto(`${APP}profile`);
+    await l.getByRole('button', { name: 'Cerrar' }).first().click({ timeout: 5000 }).catch(() => {});
+    await l.getByPlaceholder('Correo').fill('luis@vivajuice.test');
+    await l.getByPlaceholder('Contraseña').fill(nuevaClave);
+    await boton(l, 'Entrar').click();
+    await visible(l, 'Panel del negocio');
+    await visible(l, 'Luis');
+    await l.getByTestId('cambiar-contrasena').click();
+    await l.getByLabel('Contraseña nueva').fill('mi-clave-propia-1');
+    await l.getByLabel('Repite la contraseña').fill('mi-clave-propia-1');
+    await l.getByTestId('guardar-contrasena').click();
+    await visible(l, 'Listo, tu contraseña cambió.');
+    await boton(l, 'Abrir el panel').click();
+    await visible(l, 'Tienda');
+    if (await l.getByRole('tab', { name: 'Negocio' }).filter({ visible: true }).count()) throw new Error('Luis ve Negocio');
+    await l.screenshot({ path: join(here, 'capturas', `${String(n).padStart(2, '0')}b-luis-tienda.png`) });
+    await l.close();
+  });
   await paso(d, 'qr-de-la-app', async () => {
     await d.goto(`${APP}admin/business`);
     await visible(d, 'QR de la app');

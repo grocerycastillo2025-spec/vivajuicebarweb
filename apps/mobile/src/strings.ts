@@ -551,6 +551,12 @@ export const es = {
     saveFailed: 'No se pudo guardar',
     cancel: 'Cancelar',
     completeForCard: 'Agrega tu foto y teléfono para que la tienda te reconozca',
+    changePassword: 'Cambiar contraseña',
+    newPassword: 'Contraseña nueva',
+    repeatPassword: 'Repite la contraseña',
+    passwordShort: 'Mínimo 8 caracteres.',
+    passwordMismatch: 'Las contraseñas no coinciden.',
+    passwordChanged: 'Listo, tu contraseña cambió.',
   },
 
   notFound: {

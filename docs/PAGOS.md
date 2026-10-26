@@ -56,7 +56,7 @@ revisa en la app del banco que llegó y toca **Pago recibido** en Pedidos.
 
 ---
 
-## Antes de Stripe o PayPal (una sola vez): publicar las funciones
+## Antes de Stripe, PayPal o de crear cuentas del equipo (una sola vez): publicar las funciones
 
 1. Supabase → tu foto (arriba a la derecha) → **Account preferences** →
    **Access Tokens** → **Generate new token**. Nombre: `github-funciones`.
@@ -65,7 +65,8 @@ revisa en la app del banco que llegó y toca **Pago recibido** en Pedidos.
    variables** → **Actions** → **New repository secret**. Name:
    `SUPABASE_ACCESS_TOKEN`, Secret: el token → **Add secret**.
 3. GitHub → **Actions** → **Funciones de pago (Supabase)** → **Run
-   workflow** → **Run workflow**. Al terminar, el log muestra las dos URL
+   workflow** → **Run workflow**. Publica las de pagos y `equipo` (crear
+   cuentas desde el panel; no necesita ningún secreto extra). Al terminar, el log muestra las dos URL
    de webhook (las vas a necesitar abajo):
    - `https://<ref>.supabase.co/functions/v1/stripe-webhook`
    - `https://<ref>.supabase.co/functions/v1/paypal-webhook`

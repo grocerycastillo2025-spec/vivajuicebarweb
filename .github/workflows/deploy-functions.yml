@@ -29,6 +29,7 @@ on:
       - 'supabase/functions/stripe-webhook/**'
       - 'supabase/functions/paypal-pago/**'
       - 'supabase/functions/paypal-webhook/**'
+      - 'supabase/functions/equipo/**'
       - 'supabase/functions/_shared/**'
       - '.github/workflows/deploy-functions.yml'
 
@@ -70,13 +71,13 @@ jobs:
       - run: pnpm install --frozen-lockfile
         if: steps.secreto.outputs.listo == 'true'
 
-      - name: Publicar las cuatro funciones
+      - name: Publicar las funciones
         if: steps.secreto.outputs.listo == 'true'
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           PROJECT_REF: ${{ steps.secreto.outputs.ref }}
         run: |
-          for fn in stripe-pago stripe-webhook paypal-pago paypal-webhook; do
+          for fn in stripe-pago stripe-webhook paypal-pago paypal-webhook equipo; do
             pnpm supabase functions deploy "$fn" --project-ref "$PROJECT_REF" --no-verify-jwt
           done
           echo "Webhook de Stripe:  https://$PROJECT_REF.supabase.co/functions/v1/stripe-webhook"

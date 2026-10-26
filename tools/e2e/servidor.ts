@@ -27,6 +27,7 @@ import { paypalAdapter } from '../../supabase/functions/_shared/paypal.ts';
 import { signStripePayload, stripeAdapter } from '../../supabase/functions/_shared/stripe.ts';
 import { createPayPalWebhookHandler } from '../../supabase/functions/paypal-webhook/handler.ts';
 import { createStripeWebhookHandler } from '../../supabase/functions/stripe-webhook/handler.ts';
+import { createEquipoHandler } from '../../supabase/functions/_shared/equipo.ts';
 
 export const JWT_SECRET = 'e2e-secreto-de-prueba-de-32-caracteres-o-mas';
 const GATEWAY = Number(process.env['E2E_GATEWAY_PORT'] ?? 54321);
@@ -57,6 +58,7 @@ function readJwt(token: string): Record<string, unknown> | null {
   return JSON.parse(Buffer.from(body, 'base64url').toString()) as Record<string, unknown>;
 }
 export const ANON_KEY = signJwt({ iss: 'supabase', ref: 'e2e', role: 'anon', iat: 1700000000, exp: 2100000000 });
+const SERVICE_KEY = signJwt({ iss: 'supabase', ref: 'e2e', role: 'service_role', iat: 1700000000, exp: 2100000000 });
 
 const db = postgres(DB_URL, { max: 4, onnotice: () => undefined });
 const sql: Sql = (text, params) => db.unsafe(text, (params ?? []) as never[]) as unknown as Promise<Record<string, unknown>[]>;
@@ -110,8 +112,22 @@ async function auth(req: IncomingMessage, res: ServerResponse, path: string, bod
   if (path === '/auth/v1/user') {
     const claims = readJwt((req.headers.authorization ?? '').replace(/^Bearer /i, ''));
     if (claims === null || typeof claims['sub'] !== 'string') return send(res, 401, { msg: 'invalid JWT' });
+    if (req.method === 'PUT' && typeof body['password'] === 'string') {
+      passwords.set(String(claims['email'] ?? '').toLowerCase(), body['password']);
+    }
     const s = await session(claims['sub'], String(claims['email'] ?? ''));
     return send(res, 200, s['user'] as Record<string, unknown>);
+  }
+  if (path === '/auth/v1/admin/users' && req.method === 'POST') {
+    if ((req.headers.authorization ?? '') !== `Bearer ${SERVICE_KEY}`) return send(res, 401, { msg: 'not admin' });
+    const email = String(body['email'] ?? '').toLowerCase();
+    if ((await db`select 1 from auth.users where email = ${email}`).length > 0) {
+      return send(res, 422, { code: 422, error_code: 'email_exists', msg: 'A user with this email address has already been registered' });
+    }
+    const id = randomUUID();
+    await db`insert into auth.users (id, email, raw_user_meta_data) values (${id}, ${email}, ${db.json((body['user_metadata'] ?? {}) as never)})`;
+    passwords.set(email, String(body['password'] ?? ''));
+    return send(res, 200, { id, email });
   }
   if (path === '/auth/v1/logout') return send(res, 204, null);
   if (path === '/auth/v1/settings') return send(res, 200, { external: { email: true, google: false }, disable_signup: false });
@@ -199,6 +215,9 @@ const functions: Record<string, (req: Request) => Promise<Response>> = {
       clientId: 'cid', clientSecret: 'secret', env: null, fetch: providerFetch,
       liveApi: 'https://paypal-live.e2e', sandboxApi: 'https://paypal-sandbox.e2e',
     }),
+  }),
+  equipo: createEquipoHandler({
+    fetch, supabaseUrl: SELF, anonKey: ANON_KEY, serviceKey: SERVICE_KEY, log: () => undefined,
   }),
   'stripe-webhook': createStripeWebhookHandler({ sql, fetch: providerFetch, secretKey: 'sk_test_e2e', webhookSecret: WHSEC, api: 'https://stripe.e2e' }),
   'paypal-webhook': createPayPalWebhookHandler({

@@ -29,9 +29,22 @@ Lo decide la base con RLS y funciones `SECURITY DEFINER`, no la app. Nadie
 se vuelve dueño desde la app: registrarse crea una cuenta de **cliente**.
 El primer dueño se da de alta una vez desde el SQL Editor (ver
 [PUESTA-EN-MARCHA.md](PUESTA-EN-MARCHA.md)); después, el dueño da y quita
-acceso desde **Negocio → Equipo** (elige **Tienda** para quien atiende el
-mostrador). Nadie se quita a sí mismo y siempre
+acceso desde **Negocio → Equipo**. Nadie se quita a sí mismo y siempre
 queda al menos un dueño.
+
+### Dar de alta a alguien del equipo (Tienda u otro Dueño)
+
+- **Crear cuenta nueva** (lo normal): nombre, correo, contraseña temporal
+  (botón **Generar**) y rol → **Crear cuenta**. Sale una caja con el correo
+  y la contraseña para pasárselos (**Copiar datos**). La persona entra a la
+  app con esos datos y cambia su contraseña en **Perfil → Cambiar
+  contraseña**. Usa la función `equipo` de Supabase (se publica con las de
+  pagos; ver [PAGOS.md](PAGOS.md) → "publicar las funciones"). Si el correo
+  ya tenía cuenta, solo se le da el acceso y conserva su contraseña.
+- **Ya tiene cuenta**: si la persona ya se registró en la app, escribe su
+  correo y elige el rol. Funciona aunque la función no esté publicada.
+- Cambiar rol (**Hacer dueño / Hacer tienda**) o **Quitar acceso** desde
+  la lista. Quitar acceso no borra su cuenta de cliente.
 
 ## Las pestañas
 

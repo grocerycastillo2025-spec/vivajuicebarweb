@@ -18,6 +18,7 @@ import {
   updatePaymentOptions,
   updateTaxSettings,
   addTeamMember,
+  createTeamAccount,
   fetchTeam,
   removeTeamMember,
   type MemberRole,
@@ -30,7 +31,8 @@ import {
 import type { AppSettingsRow, StoreHoursRow, StoreRow } from '../../src/api/types';
 import { useAdmin } from '../../src/admin/admin-context';
 import { canPickImages, pickLogo } from '../../src/admin/pick-image';
-import { appInstallUrl, downloadQrPng, printAppPoster, qrDataUrl } from '../../src/admin/qr';
+import { appInstallUrl, appPublicUrl, downloadQrPng, printAppPoster, qrDataUrl } from '../../src/admin/qr';
+import { tempPassword, teamErrorCode } from '../../src/domain/team';
 import { MapPicker } from '../../src/admin/MapPicker';
 import { GEOCODE_URL, formatLatLng, geocodeQuery, isLatLng, parseGeocode, roundLatLng, type LatLng } from '../../src/domain/geo';
 import { storeMapsUrl } from '../../src/domain/maps';
@@ -578,6 +580,16 @@ function createStyles(colors: BrandColors) {
     roleChipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
     roleChipText: { color: colors.text, fontWeight: '700', fontSize: typography.label.fontSize },
     roleChipTextOn: { color: colors.onPrimary },
+    passwordRow: { flexDirection: 'row', alignItems: 'flex-end', gap: spacing.sm, flexWrap: 'wrap' },
+    credentials: {
+      gap: spacing.sm,
+      padding: spacing.md,
+      borderRadius: radius.md,
+      borderWidth: 2,
+      borderColor: colors.primary,
+      backgroundColor: colors.background,
+    },
+    credLine: { color: colors.text, fontSize: typography.body.fontSize + 1, fontWeight: '800', letterSpacing: 0.5 },
     mpCheck: { alignSelf: 'flex-start', minHeight: 40 },
     paySection: {
       gap: spacing.sm,
@@ -829,12 +841,19 @@ function TeamCard(): ReactNode {
   const { data, refresh } = useAsync(load, [restaurantId]);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<MemberRole>('staff');
+  const [mode, setMode] = useState<'new' | 'existing'>('new');
+  const [newName, setNewName] = useState('');
+  const [password, setPassword] = useState(() => tempPassword());
+  const [result, setResult] = useState<{ email: string; password: string; created: boolean } | null>(null);
+  const [copiedCreds, setCopiedCreds] = useState(false);
   const [confirming, setConfirming] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
 
   const explain = (cause: unknown): string => {
     const message = cause instanceof Error ? cause.message : String(cause);
+    const code = teamErrorCode(message);
+    if (code !== null && tm.errors[code] !== undefined) return tm.errors[code] ?? message;
     const key = Object.keys(tm.errors).find((k) => message.includes(k));
     return key === undefined ? `${adminStrings.saveFailed}: ${message}` : (tm.errors[key] ?? message);
   };
@@ -920,24 +939,99 @@ function TeamCard(): ReactNode {
 
       <View style={styles.addBox}>
         <Text style={styles.label}>{tm.addTitle}</Text>
-        <Text style={styles.hint}>{tm.addHint}</Text>
+        <View style={styles.roleRow} accessibilityRole="tablist">
+          {(['new', 'existing'] as const).map((m) => (
+            <Pressable
+              key={m}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: mode === m }}
+              onPress={() => {
+                setMode(m);
+                setNotice(null);
+              }}
+              style={[styles.roleChip, mode === m && styles.roleChipOn]}
+              testID={`equipo-modo-${m}`}
+            >
+              <Text style={[styles.roleChipText, mode === m && styles.roleChipTextOn]}>
+                {m === 'new' ? tm.modeNew : tm.modeExisting}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+        <Text style={styles.hint}>{mode === 'new' ? tm.createHint : tm.addHint}</Text>
+        {mode === 'new' ? (
+          <Field label={tm.name} value={newName} onChangeText={setNewName} placeholder={tm.namePlaceholder} />
+        ) : null}
         <Field label={tm.email} value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
+        {mode === 'new' ? (
+          <View style={styles.passwordRow}>
+            <View style={styles.grow}>
+              <Field label={tm.password} value={password} onChangeText={setPassword} autoCapitalize="none" hint={tm.passwordHint} />
+            </View>
+            <Button label={tm.generate} variant="outline" onPress={() => setPassword(tempPassword())} />
+          </View>
+        ) : null}
+        <Text style={styles.label}>{tm.roleLabel}</Text>
         <View style={styles.roleRow}>
           {roleChip('staff', tm.staff)}
           {roleChip('owner', tm.owner)}
         </View>
-        <Button
-          label={tm.add}
-          busy={busy}
-          disabled={!email.includes('@')}
-          onPress={() =>
-            void run(async () => {
-              await addTeamMember(restaurantId, email, role);
-              setEmail('');
-            }, tm.added)
-          }
-        />
+        <Text style={styles.hint}>{role === 'staff' ? tm.roleStaffHint : tm.roleOwnerHint}</Text>
+        {mode === 'new' ? (
+          <Button
+            label={tm.create}
+            busy={busy}
+            disabled={!email.includes('@') || password.length < 8}
+            testID="crear-cuenta-equipo"
+            onPress={() =>
+              void run(async () => {
+                const done = await createTeamAccount(restaurantId, { email, password, role, firstName: newName });
+                setResult({ email: email.trim().toLowerCase(), password, created: done.created });
+                setCopiedCreds(false);
+                setEmail('');
+                setNewName('');
+                setPassword(tempPassword());
+              }, null)
+            }
+          />
+        ) : (
+          <Button
+            label={tm.add}
+            busy={busy}
+            disabled={!email.includes('@')}
+            onPress={() =>
+              void run(async () => {
+                await addTeamMember(restaurantId, email, role);
+                setEmail('');
+              }, tm.added)
+            }
+          />
+        )}
       </View>
+      {result !== null ? (
+        <View style={styles.credentials} testID="cuenta-creada">
+          {result.created ? (
+            <>
+              <Text style={styles.label}>{tm.createdTitle}</Text>
+              <Text style={styles.credLine} selectable>{result.email}</Text>
+              <Text style={styles.credLine} selectable>{result.password}</Text>
+              <Text style={styles.hint}>{tm.createdChange}</Text>
+              <Button
+                label={copiedCreds ? tm.copied : tm.copy}
+                variant="outline"
+                onPress={() => {
+                  void globalThis.navigator?.clipboard
+                    ?.writeText(`${result.email}\n${result.password}\n${appPublicUrl()}`)
+                    .then(() => setCopiedCreds(true))
+                    .catch(() => undefined);
+                }}
+              />
+            </>
+          ) : (
+            <Text style={styles.hint}>{tm.createdExisting}</Text>
+          )}
+        </View>
+      ) : null}
       {notice !== null ? <Notice tone={notice.tone} text={notice.text} /> : null}
     </Card>
   );

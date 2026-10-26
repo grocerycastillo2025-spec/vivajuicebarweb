@@ -48,6 +48,11 @@ export async function uploadAvatar(userId: string, blob: Blob): Promise<string> 
   return path;
 }
 
+export async function changePassword(password: string): Promise<void> {
+  const { error } = await getSupabase().auth.updateUser({ password });
+  if (error) throw dataError(error.message);
+}
+
 /** El bucket es privado: se pide una liga firmada que dura una hora. */
 export async function avatarUrl(path: string | null | undefined): Promise<string | null> {
   if (path === null || path === undefined || path === '') return null;

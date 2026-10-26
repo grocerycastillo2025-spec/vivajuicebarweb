@@ -10,7 +10,7 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { canPickImages, pickAvatar, type PickedImage } from '../admin/pick-image';
-import { avatarUrl, updateProfile, uploadAvatar } from '../api/account';
+import { avatarUrl, changePassword, updateProfile, uploadAvatar } from '../api/account';
 import type { ProfileRow } from '../api/types';
 import type { BrandColors } from '../domain/branding';
 import { useColors } from '../state/branding-context';
@@ -34,6 +34,9 @@ export function ProfileEditor({
   const colors = useColors();
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [editing, setEditing] = useState(false);
+  const [changingPw, setChangingPw] = useState(false);
+  const [pw1, setPw1] = useState('');
+  const [pw2, setPw2] = useState('');
   const [first, setFirst] = useState(profile?.first_name ?? '');
   const [last, setLast] = useState(profile?.last_name ?? '');
   const [phone, setPhone] = useState(profile?.phone ?? '');
@@ -80,6 +83,24 @@ export function ProfileEditor({
       setEditing(false);
       setPhoto(null);
       onSaved();
+    } catch (cause) {
+      setNotice({ ok: false, text: `${strings.profile.saveFailed}: ${cause instanceof Error ? cause.message : String(cause)}` });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const savePassword = async (): Promise<void> => {
+    if (pw1.length < 8) return setNotice({ ok: false, text: strings.profile.passwordShort });
+    if (pw1 !== pw2) return setNotice({ ok: false, text: strings.profile.passwordMismatch });
+    setBusy(true);
+    setNotice(null);
+    try {
+      await changePassword(pw1);
+      setNotice({ ok: true, text: strings.profile.passwordChanged });
+      setChangingPw(false);
+      setPw1('');
+      setPw2('');
     } catch (cause) {
       setNotice({ ok: false, text: `${strings.profile.saveFailed}: ${cause instanceof Error ? cause.message : String(cause)}` });
     } finally {
@@ -140,6 +161,23 @@ export function ProfileEditor({
       ) : (
         <Button label={strings.profile.edit} variant="outline" onPress={() => setEditing(true)} testID="editar-perfil" />
       )}
+      {changingPw ? (
+        <View style={styles.form}>
+          <Text style={styles.label}>{strings.profile.newPassword}</Text>
+          <TextInput value={pw1} onChangeText={setPw1} secureTextEntry style={styles.input}
+            accessibilityLabel={strings.profile.newPassword} autoComplete="new-password" />
+          <Text style={styles.label}>{strings.profile.repeatPassword}</Text>
+          <TextInput value={pw2} onChangeText={setPw2} secureTextEntry style={styles.input}
+            accessibilityLabel={strings.profile.repeatPassword} autoComplete="new-password" />
+          <Text style={styles.hint}>{strings.profile.passwordShort}</Text>
+          <View style={styles.row}>
+            <Button label={strings.profile.save} busy={busy} onPress={() => void savePassword()} testID="guardar-contrasena" />
+            <Button label={strings.profile.cancel} variant="outline" onPress={() => setChangingPw(false)} />
+          </View>
+        </View>
+      ) : !editing ? (
+        <Button label={strings.profile.changePassword} variant="outline" onPress={() => setChangingPw(true)} testID="cambiar-contrasena" />
+      ) : null}
       {notice !== null ? (
         <Text style={[styles.hint, { color: notice.ok ? colors.success : colors.danger }]}>{notice.text}</Text>
       ) : null}

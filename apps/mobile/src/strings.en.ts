@@ -520,6 +520,12 @@ export const en: Strings = {
     saveFailed: 'Couldn’t save',
     cancel: 'Cancel',
     completeForCard: 'Add your photo and phone so the staff can recognize you',
+    changePassword: 'Change password',
+    newPassword: 'New password',
+    repeatPassword: 'Repeat the password',
+    passwordShort: 'At least 8 characters.',
+    passwordMismatch: 'The passwords don’t match.',
+    passwordChanged: 'Done, your password changed.',
   },
 
   notFound: {
