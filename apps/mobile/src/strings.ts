@@ -161,6 +161,20 @@ export const es = {
     signInToOrderBody: 'Guardamos tu pedido en tu cuenta para que lo sigas y lo repitas después.',
     checkYourEmail: 'Revisa tu correo',
     checkYourEmailBody: 'Te enviamos un enlace para confirmar tu correo.',
+    showPassword: 'Mostrar contraseña',
+    hidePassword: 'Ocultar contraseña',
+    confirmSent: (email: string): string =>
+      `Listo. Te mandamos un correo a ${email}: abre el enlace para confirmar tu cuenta y luego entra aquí. Revisa también "Spam".`,
+    problems: {
+      bad_credentials: 'Correo o contraseña incorrectos.',
+      not_confirmed: 'Falta confirmar tu correo: abre el enlace que te mandamos (revisa "Spam") y vuelve a entrar.',
+      already_registered: 'Ese correo ya tiene cuenta. Toca "Ya tengo cuenta" y entra.',
+      weak_password: 'La contraseña es muy corta: usa al menos 8 caracteres.',
+      invalid_email: 'Revisa el correo: parece que está mal escrito.',
+      rate_limited: 'Demasiados intentos. Espera un minuto e intenta otra vez.',
+      offline: 'Sin conexión. Revisa tu internet e intenta otra vez.',
+      other: 'Algo salió mal. Intenta otra vez.',
+    } as Record<string, string>,
   },
 
   /**

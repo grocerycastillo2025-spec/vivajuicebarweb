@@ -6,13 +6,16 @@
  */
 
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
-import { Alert, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
+
+import { authProblem } from '../domain/auth-errors';
 
 import type { BrandColors } from '../domain/branding';
 import { useColors } from '../state/branding-context';
 import { useSession } from '../state/session-context';
 import { strings } from '../strings';
 import { radius, spacing, type as typography } from '../theme';
+import { PasswordInput } from './PasswordInput';
 import { Button } from './ui';
 
 export function AuthForm({
@@ -34,27 +37,33 @@ export function AuthForm({
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
+  // En web `Alert.alert` no muestra nada: los avisos van dentro del formulario.
+  const [notice, setNotice] = useState<{ ok: boolean; text: string } | null>(null);
 
   const submit = useCallback(async () => {
     setBusy(true);
+    setNotice(null);
     try {
       if (mode === 'signin') {
         await signIn(email, password);
         onSignedIn?.();
       } else {
+        if (password.length < 8) {
+          setNotice({ ok: false, text: strings.auth.problems['weak_password'] ?? '' });
+          return;
+        }
         const needsConfirmation = await signUp(email, password, firstName);
         setPassword('');
         if (needsConfirmation) {
-          Alert.alert(strings.auth.checkYourEmail, strings.auth.checkYourEmailBody);
+          setNotice({ ok: true, text: strings.auth.confirmSent(email.trim()) });
+          setMode('signin');
         } else {
           onSignedIn?.();
         }
       }
     } catch (cause) {
-      Alert.alert(
-        mode === 'signin' ? strings.auth.signInFailed : strings.auth.signUpFailed,
-        cause instanceof Error ? cause.message : String(cause),
-      );
+      const problem = authProblem(cause instanceof Error ? cause.message : String(cause));
+      setNotice({ ok: false, text: strings.auth.problems[problem] ?? String(cause) });
     } finally {
       setBusy(false);
     }
@@ -66,10 +75,8 @@ export function AuthForm({
       await signInWithGoogle();
       onSignedIn?.();
     } catch (cause) {
-      Alert.alert(
-        strings.auth.signInFailed,
-        cause instanceof Error ? cause.message : String(cause),
-      );
+      const problem = authProblem(cause instanceof Error ? cause.message : String(cause));
+      setNotice({ ok: false, text: strings.auth.problems[problem] ?? String(cause) });
     } finally {
       setGoogleBusy(false);
     }
@@ -114,20 +121,31 @@ export function AuthForm({
         autoCapitalize="none"
         autoCorrect={false}
         keyboardType="email-address"
-        autoComplete="email"
+        // Al crear cuenta no se ofrecen correos guardados (el de otra cuenta
+        // tapaba el campo de contraseña); al entrar, sí.
+        autoComplete={mode === 'signin' ? 'email' : 'off'}
+        importantForAutofill={mode === 'signin' ? 'auto' : 'no'}
         style={styles.input}
       />
 
-      <TextInput
+      <PasswordInput
         value={password}
         onChangeText={setPassword}
         placeholder={strings.auth.password}
-        placeholderTextColor={colors.textFaint}
-        secureTextEntry
-        autoCapitalize="none"
         autoComplete={mode === 'signin' ? 'current-password' : 'new-password'}
+        onSubmitEditing={() => void submit()}
         style={styles.input}
       />
+
+      {notice !== null ? (
+        <Text
+          accessibilityRole="alert"
+          style={[styles.notice, { color: notice.ok ? colors.success : colors.danger }]}
+          testID="aviso-cuenta"
+        >
+          {notice.text}
+        </Text>
+      ) : null}
 
       <Button
         label={mode === 'signin' ? strings.auth.signIn : strings.auth.signUp}
@@ -139,7 +157,10 @@ export function AuthForm({
       <Button
         label={mode === 'signin' ? strings.auth.noAccount : strings.auth.haveAccount}
         variant="outline"
-        onPress={() => setMode(mode === 'signin' ? 'signup' : 'signin')}
+        onPress={() => {
+          setMode(mode === 'signin' ? 'signup' : 'signin');
+          setNotice(null);
+        }}
       />
     </View>
   );
@@ -157,6 +178,7 @@ function createStyles(colors: BrandColors) {
     },
     title: { color: colors.text, fontSize: typography.section.fontSize, fontWeight: '800' },
     body: { color: colors.textMuted, fontSize: typography.body.fontSize, lineHeight: 21 },
+    notice: { fontSize: typography.label.fontSize, fontWeight: '700', lineHeight: 20 },
     divider: {
       color: colors.textFaint,
       fontSize: typography.caption.fontSize,

@@ -207,7 +207,14 @@ try {
     await d.goto(`${APP}profile`);
     await d.getByRole('button', { name: 'Cerrar' }).first().click({ timeout: 5000 }).catch(() => {});
     await d.getByPlaceholder('Correo').fill('duena@vivajuice.test');
+    // Contraseña equivocada: el aviso se ve en la página (en web no hay Alert).
+    await d.getByPlaceholder('Contraseña').fill('equivocada-1');
+    await boton(d, 'Entrar').click();
+    await visible(d, 'Correo o contraseña incorrectos.');
     await d.getByPlaceholder('Contraseña').fill('clave-segura-1');
+    // El ojito deja ver lo que se escribió.
+    await d.getByRole('button', { name: 'Mostrar contraseña' }).click();
+    if ((await d.getByPlaceholder('Contraseña').getAttribute('type')) === 'password') throw new Error('El ojito no muestra la contraseña');
     await boton(d, 'Entrar').click();
     await visible(d, 'Panel del negocio');
   });

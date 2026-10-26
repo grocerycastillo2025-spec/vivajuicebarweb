@@ -11,7 +11,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { fetchCatalogSnapshot } from '../../src/api/menu';
 import { fetchMyOrders, type OrderWithItems } from '../../src/api/orders';
@@ -29,6 +29,7 @@ import { useCart } from '../../src/state/cart-context';
 import { useSession } from '../../src/state/session-context';
 import { useStores } from '../../src/state/store-context';
 import { strings } from '../../src/strings';
+import { notify } from '../../src/components/notify';
 import { radius, spacing, type as typography } from '../../src/theme';
 
 export default function OrdersScreen(): ReactNode {
@@ -67,7 +68,7 @@ export default function OrdersScreen(): ReactNode {
         const result = revalidateCart(rebuilt, snapshot);
 
         if (result.cart.lines.length === 0) {
-          Alert.alert(strings.orders.title, strings.storePicker.notOnMenu);
+          notify(strings.orders.title, strings.storePicker.notOnMenu);
           return;
         }
 
@@ -82,14 +83,14 @@ export default function OrdersScreen(): ReactNode {
                 : `${issue.itemName}: ${formatMoney(issue.beforeCents ?? 0)} → ${formatMoney(issue.afterCents ?? 0)}`,
             )
             .join('\n');
-          Alert.alert(strings.storePicker.reviewTitle, changed);
+          notify(strings.storePicker.reviewTitle, changed);
         } else {
-          Alert.alert(strings.order.reorder, strings.order.reorderAdded);
+          notify(strings.order.reorder, strings.order.reorderAdded);
         }
 
         router.push('/cart');
       } catch (cause) {
-        Alert.alert(strings.orders.title, cause instanceof Error ? cause.message : String(cause));
+        notify(strings.orders.title, cause instanceof Error ? cause.message : String(cause));
       } finally {
         setReordering(null);
       }

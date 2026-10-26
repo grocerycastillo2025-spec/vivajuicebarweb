@@ -16,6 +16,7 @@ import type { BrandColors } from '../domain/branding';
 import { useColors } from '../state/branding-context';
 import { strings } from '../strings';
 import { radius, spacing, type as typography } from '../theme';
+import { PasswordInput } from './PasswordInput';
 import { Button } from './ui';
 
 export function ProfileEditor({
@@ -164,10 +165,10 @@ export function ProfileEditor({
       {changingPw ? (
         <View style={styles.form}>
           <Text style={styles.label}>{strings.profile.newPassword}</Text>
-          <TextInput value={pw1} onChangeText={setPw1} secureTextEntry style={styles.input}
+          <PasswordInput value={pw1} onChangeText={setPw1} style={styles.input}
             accessibilityLabel={strings.profile.newPassword} autoComplete="new-password" />
           <Text style={styles.label}>{strings.profile.repeatPassword}</Text>
-          <TextInput value={pw2} onChangeText={setPw2} secureTextEntry style={styles.input}
+          <PasswordInput value={pw2} onChangeText={setPw2} style={styles.input}
             accessibilityLabel={strings.profile.repeatPassword} autoComplete="new-password" />
           <Text style={styles.hint}>{strings.profile.passwordShort}</Text>
           <View style={styles.row}>

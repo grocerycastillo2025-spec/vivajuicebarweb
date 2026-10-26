@@ -78,7 +78,13 @@ export function SessionProvider({ children }: { children: ReactNode }): ReactNod
     const { data, error } = await getSupabase().auth.signUp({
       email: email.trim(),
       password,
-      options: { data: { first_name: firstName.trim() } },
+      options: {
+        data: { first_name: firstName.trim() },
+        // El enlace de confirmación vuelve a la app (y no a localhost).
+        ...(typeof window !== 'undefined' && window.location?.origin
+          ? { emailRedirectTo: `${window.location.origin}${window.location.pathname.replace(/[^/]*$/, '')}` }
+          : {}),
+      },
     });
     if (error) throw new Error(error.message);
     // Con "Confirm email" activo no hay sesion hasta que el usuario abre

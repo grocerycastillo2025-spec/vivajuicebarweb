@@ -152,6 +152,20 @@ export const en: Strings = {
     signInToOrderBody: 'We save your order to your account so you can track it and order it again.',
     checkYourEmail: 'Check your email',
     checkYourEmailBody: 'We sent you a link to confirm your email.',
+    showPassword: 'Show password',
+    hidePassword: 'Hide password',
+    confirmSent: (email: string): string =>
+      `Done. We sent an email to ${email}: open the link to confirm your account, then sign in here. Check "Spam" too.`,
+    problems: {
+      bad_credentials: 'Wrong email or password.',
+      not_confirmed: 'Your email isn’t confirmed yet: open the link we sent you (check "Spam") and sign in again.',
+      already_registered: 'That email already has an account. Tap "I have an account" and sign in.',
+      weak_password: 'The password is too short: use at least 8 characters.',
+      invalid_email: 'Check the email: it looks mistyped.',
+      rate_limited: 'Too many attempts. Wait a minute and try again.',
+      offline: 'No connection. Check your internet and try again.',
+      other: 'Something went wrong. Try again.',
+    },
   },
 
   surcharge: {
