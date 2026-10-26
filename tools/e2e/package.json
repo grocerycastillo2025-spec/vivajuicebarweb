@@ -8,6 +8,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "leaflet": "1.9.4",
     "playwright": "1.63.0",
     "postgres": "3.4.5"
   }

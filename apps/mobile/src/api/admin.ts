@@ -477,6 +477,8 @@ export interface StoreInput {
   readonly state: string | null;
   readonly postal_code: string | null;
   readonly pickup_enabled: boolean;
+  readonly latitude?: number | null;
+  readonly longitude?: number | null;
 }
 
 export async function updateStore(storeId: string, input: StoreInput): Promise<void> {

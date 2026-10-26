@@ -31,6 +31,9 @@ import type { AppSettingsRow, StoreHoursRow, StoreRow } from '../../src/api/type
 import { useAdmin } from '../../src/admin/admin-context';
 import { canPickImages, pickLogo } from '../../src/admin/pick-image';
 import { appInstallUrl, downloadQrPng, printAppPoster, qrDataUrl } from '../../src/admin/qr';
+import { MapPicker } from '../../src/admin/MapPicker';
+import { GEOCODE_URL, formatLatLng, geocodeQuery, isLatLng, parseGeocode, roundLatLng, type LatLng } from '../../src/domain/geo';
+import { storeMapsUrl } from '../../src/domain/maps';
 import { adminStrings, adminStrings as t } from '../../src/admin/strings';
 import { AdminShell, Card, Field, Notice, Toggle, createAdminStyles } from '../../src/admin/ui';
 import { DataState } from '../../src/components/DataState';
@@ -176,6 +179,13 @@ function AppQrCard(): ReactNode {
   );
 }
 
+const mapStyles = StyleSheet.create({
+  title: { fontSize: typography.body.fontSize, fontWeight: '800', marginTop: spacing.sm },
+  hint: { fontSize: typography.label.fontSize, lineHeight: 19 },
+  row: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  link: { fontSize: typography.label.fontSize, fontWeight: '700', textDecorationLine: 'underline' },
+});
+
 const qrStyles = StyleSheet.create({
   hint: { fontSize: typography.label.fontSize, lineHeight: 19 },
   row: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.lg, alignItems: 'center' },
@@ -194,7 +204,48 @@ function StoreCard({ store }: { readonly store: StoreRow }): ReactNode {
   const [state, setState] = useState(store.state ?? '');
   const [postal, setPostal] = useState(store.postal_code ?? '');
   const [pickup, setPickup] = useState(store.pickup_enabled);
+  const [point, setPoint] = useState<LatLng | null>(
+    isLatLng(store.latitude, store.longitude) ? { lat: store.latitude as number, lng: store.longitude as number } : null,
+  );
+  const [mapNotice, setMapNotice] = useState<string | null>(null);
+  const [finding, setFinding] = useState(false);
   const { saving, notice, run } = useSaver();
+  const colors = useColors();
+  const pointChanged = point !== null && (point.lat !== store.latitude || point.lng !== store.longitude);
+
+  const findAddress = async (): Promise<void> => {
+    const q = geocodeQuery({ address, city, state, postal });
+    if (q === null) {
+      setMapNotice(t.business.mapNotFound);
+      return;
+    }
+    setFinding(true);
+    setMapNotice(null);
+    try {
+      const res = await fetch(`${GEOCODE_URL}${encodeURIComponent(q)}`, { headers: { Accept: 'application/json' } });
+      const found = parseGeocode(await res.json());
+      if (found === null) setMapNotice(t.business.mapNotFound);
+      else setPoint(found);
+    } catch {
+      setMapNotice(t.business.mapNotFound);
+    } finally {
+      setFinding(false);
+    }
+  };
+
+  const useMine = (): void => {
+    setMapNotice(null);
+    const geo = globalThis.navigator?.geolocation;
+    if (geo === undefined) {
+      setMapNotice(t.business.mapNoGps);
+      return;
+    }
+    geo.getCurrentPosition(
+      (pos) => setPoint(roundLatLng({ lat: pos.coords.latitude, lng: pos.coords.longitude })),
+      () => setMapNotice(t.business.mapNoGps),
+      { enableHighAccuracy: true, timeout: 15000 },
+    );
+  };
 
   const blank = (value: string): string | null => (value.trim() === '' ? null : value.trim());
 
@@ -206,6 +257,35 @@ function StoreCard({ store }: { readonly store: StoreRow }): ReactNode {
       <Field label={t.business.city} value={city} onChangeText={setCity} />
       <Field label={t.business.state} value={state} onChangeText={setState} />
       <Field label={t.business.postalCode} value={postal} onChangeText={setPostal} keyboardType="number-pad" />
+      <Text style={[mapStyles.title, { color: colors.text }]}>{t.business.mapTitle}</Text>
+      <Text style={[mapStyles.hint, { color: colors.textMuted }]}>{t.business.mapHint}</Text>
+      <MapPicker
+        value={point}
+        fallback={point ?? { lat: 40.2601, lng: -74.2738 }}
+        onChange={setPoint}
+        failedText={t.business.mapFailed}
+      />
+      <View style={mapStyles.row}>
+        <Button label={t.business.mapFind} variant="outline" busy={finding} onPress={() => void findAddress()} testID="buscar-direccion" />
+        <Button label={t.business.mapMine} variant="outline" onPress={useMine} />
+      </View>
+      <Text style={[mapStyles.hint, { color: colors.textMuted }]}>
+        {point === null ? t.business.mapUnset : t.business.mapSet(formatLatLng(point))}
+        {point !== null && pointChanged ? ` · ${t.business.mapUnsaved}` : ''}
+      </Text>
+      {point !== null ? (
+        <Text
+          accessibilityRole="link"
+          style={[mapStyles.link, { color: colors.primary }]}
+          onPress={() => {
+            const url = storeMapsUrl({ name, latitude: point.lat, longitude: point.lng });
+            if (url !== null) globalThis.open?.(url, '_blank');
+          }}
+        >
+          {t.business.mapCheck}
+        </Text>
+      ) : null}
+      {mapNotice !== null ? <Notice tone="error" text={mapNotice} /> : null}
       <Toggle label={t.business.pickup} hint={t.business.pickupHint} value={pickup} onValueChange={setPickup} />
       {notice !== null ? <Notice tone={notice.tone} text={notice.text} /> : null}
       <Button
@@ -222,6 +302,7 @@ function StoreCard({ store }: { readonly store: StoreRow }): ReactNode {
               state: blank(state),
               postal_code: blank(postal),
               pickup_enabled: pickup,
+              ...(point === null ? {} : { latitude: point.lat, longitude: point.lng }),
             });
             reloadStore();
           })

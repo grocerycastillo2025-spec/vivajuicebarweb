@@ -81,7 +81,10 @@ queda al menos un dueño.
     local".
   - Los códigos de canje de 6 letras de antes se siguen validando abajo.
 - **Negocio**: **QR de la app** (Imprimir cartel tamaño carta con tu logo
-  y texto en inglés y español, Descargar QR, Copiar liga), sucursal, horario, pausar pedidos, marca y colores, equipo,
+  y texto en inglés y español, Descargar QR, Copiar liga), sucursal (con
+  **Ubicación en el mapa**: arrastra el pin o toca el mapa hasta la puerta;
+  "Buscar la dirección" o "Usar mi ubicación" si estás en el local; es a
+  donde lleva "Cómo llegar" al cliente), horario, pausar pedidos, marca y colores, equipo,
   **impuestos y recargos** y **formas de pago** (ver [PAGOS.md](PAGOS.md)).
   En cada producto (Menú) se elige si cobra impuesto y, opcional, su tasa
   propia.

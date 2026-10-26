@@ -38,6 +38,21 @@ async function servirFotos(context) {
     if (!existsSync(file)) return route.fulfill({ status: 404 });
     return route.fulfill({ body: readFileSync(file), contentType: file.endsWith('.png') ? 'image/png' : 'image/jpeg' });
   });
+  // Mapa del panel sin internet: Leaflet desde node_modules, mosaicos en
+  // blanco y un buscador de direcciones falso (31 South St, Freehold).
+  const LEAFLET = join(here, '..', '..', 'node_modules', 'leaflet', 'dist');
+  await context.route('https://unpkg.com/leaflet@1.9.4/dist/**', (route) => {
+    const file = join(LEAFLET, new URL(route.request().url()).pathname.replace('/leaflet@1.9.4/dist/', ''));
+    if (!existsSync(file)) return route.fulfill({ status: 404 });
+    const type = file.endsWith('.js') ? 'text/javascript' : file.endsWith('.css') ? 'text/css' : 'image/png';
+    return route.fulfill({ body: readFileSync(file), contentType: type });
+  });
+  await context.route('https://tile.openstreetmap.org/**', (route) =>
+    route.fulfill({ body: readFileSync(join(LEAFLET, 'images', 'layers.png')), contentType: 'image/png' }),
+  );
+  await context.route('https://nominatim.openstreetmap.org/**', (route) =>
+    route.fulfill({ body: JSON.stringify([{ lat: '40.2602115', lon: '-74.2738712' }]), contentType: 'application/json' }),
+  );
 }
 
 async function nuevaPagina({ locale = 'es-US', width = 390, height = 844, userAgent } = {}) {
@@ -441,6 +456,29 @@ try {
     await d.getByTestId('panel-idioma-es').click();
     await visible(d, 'Recibiendo pedidos');
     await visible(d, 'Jugo Verde');
+  });
+  await paso(d, 'sucursal-en-el-mapa', async () => {
+    await d.goto(`${APP}admin/business`);
+    await visible(d, 'Ubicación en el mapa');
+    await d.locator('.leaflet-marker-icon').first().waitFor({ timeout: 15_000 });
+    await d.getByTestId('buscar-direccion').click();
+    await visible(d, 'Marcado: 40.260212, -74.273871');
+    // Tocar el mapa un poco a la derecha del pin: el pin se va ahí.
+    await d.waitForTimeout(900);
+    const pin = d.locator('.leaflet-marker-icon').first();
+    const box = await pin.boundingBox();
+    await d.mouse.click(box.x + box.width / 2 + 80, box.y + box.height - 2);
+    await d.waitForTimeout(400);
+    const before = await d.getByText(/^Marcado: /).first().innerText();
+    if (before.includes('-74.273871')) throw new Error(`El pin no se movió: ${before}`);
+    await d.getByRole('button', { name: 'Guardar cambios' }).first().click();
+    let s;
+    for (let i = 0; i < 40; i += 1) {
+      [s] = await db`select latitude, longitude from public.stores where id = ${STORE}`;
+      if (s.latitude !== null && Number(s.longitude) > -74.273871) break;
+      await d.waitForTimeout(250);
+    }
+    if (s.latitude === null || !(Number(s.longitude) > -74.273871)) throw new Error(`No se guardó el punto: ${JSON.stringify(s)}`);
   });
   await paso(d, 'qr-de-la-app', async () => {
     await d.goto(`${APP}admin/business`);
