@@ -30,6 +30,7 @@ import {
 import type { AppSettingsRow, StoreHoursRow, StoreRow } from '../../src/api/types';
 import { useAdmin } from '../../src/admin/admin-context';
 import { canPickImages, pickLogo } from '../../src/admin/pick-image';
+import { appInstallUrl, downloadQrPng, printAppPoster, qrDataUrl } from '../../src/admin/qr';
 import { adminStrings, adminStrings as t } from '../../src/admin/strings';
 import { AdminShell, Card, Field, Notice, Toggle, createAdminStyles } from '../../src/admin/ui';
 import { DataState } from '../../src/components/DataState';
@@ -95,6 +96,7 @@ export default function AdminBusinessScreen(): ReactNode {
     <AdminShell>
       <View style={layoutStyles.layout}>
         <View style={layoutStyles.column}>
+          <AppQrCard />
           <StoreCard store={store} />
           <HoursCard storeId={store.id} hours={data.hours} />
         </View>
@@ -138,6 +140,50 @@ function useSaver(): {
   }, []);
   return { saving, notice, run };
 }
+
+function AppQrCard(): ReactNode {
+  const { displayName, logoUrl, colors } = useBranding();
+  const [copied, setCopied] = useState(false);
+  const url = appInstallUrl();
+  const logo = typeof logoUrl === 'string' ? logoUrl : null;
+  return (
+    <Card title={t.business.appQrTitle}>
+      <Text style={[qrStyles.hint, { color: colors.textMuted }]}>{t.business.appQrHint}</Text>
+      <View style={qrStyles.row}>
+        <View style={qrStyles.frame}>
+          <Image source={{ uri: qrDataUrl(url, 6) }} style={qrStyles.qr} contentFit="contain" accessibilityLabel={t.business.appQrTitle} />
+        </View>
+        <View style={qrStyles.actions}>
+          <Button
+            label={t.business.printPoster}
+            onPress={() => printAppPoster({ url, brand: displayName, logoUrl: logo, color: colors.primary })}
+            testID="imprimir-cartel"
+          />
+          <Button label={t.business.downloadQr} variant="outline" onPress={() => downloadQrPng(url, 'qr-app.png')} />
+          <Button
+            label={copied ? t.business.copied : t.business.copyLink}
+            variant="outline"
+            onPress={() => {
+              void globalThis.navigator?.clipboard?.writeText(url).then(() => setCopied(true)).catch(() => undefined);
+            }}
+          />
+        </View>
+      </View>
+      <Text style={[qrStyles.url, { color: colors.textFaint }]} selectable>
+        {url}
+      </Text>
+    </Card>
+  );
+}
+
+const qrStyles = StyleSheet.create({
+  hint: { fontSize: typography.label.fontSize, lineHeight: 19 },
+  row: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.lg, alignItems: 'center' },
+  frame: { backgroundColor: '#FFFFFF', padding: spacing.sm, borderRadius: radius.md, borderWidth: 1, borderColor: 'rgba(0,0,0,0.1)' },
+  qr: { width: 160, height: 160 },
+  actions: { flex: 1, minWidth: 180, gap: spacing.sm },
+  url: { fontSize: typography.caption.fontSize },
+});
 
 function StoreCard({ store }: { readonly store: StoreRow }): ReactNode {
   const { reloadStore } = useAdmin();

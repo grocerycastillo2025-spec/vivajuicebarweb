@@ -408,6 +408,42 @@ try {
   });
 
   // -------------------------------------------------------------------
+  console.log('Dueña: estadísticas y QR de la app');
+  await paso(d, 'estadisticas-graficas', async () => {
+    await d.goto(`${APP}admin/estadisticas`);
+    await visible(d, 'En resumen');
+    await visible(d, 'Vendiste');
+    await visible(d, 'La hora con más pedidos');
+    await visible(d, '¿Cuándo te piden?');
+    await visible(d, '¿Cómo pagan?');
+    await visible(d, 'Tarjeta en línea');
+    await visible(d, 'Jugo Verde');
+    await d.getByText('¿Cuándo te piden?').scrollIntoViewIfNeeded();
+    await d.screenshot({ path: join(here, 'capturas', `${String(n).padStart(2, '0')}b-estadisticas-calor.png`) });
+    await d.getByText('Interés en la app').scrollIntoViewIfNeeded();
+    await d.screenshot({ path: join(here, 'capturas', `${String(n).padStart(2, '0')}c-estadisticas-pagos.png`) });
+  });
+  await paso(d, 'estadisticas-hoy', async () => {
+    await d.getByRole('radio', { name: 'Hoy' }).click();
+    await visible(d, 'Pedidos por hora');
+  });
+  await paso(d, 'qr-de-la-app', async () => {
+    await d.goto(`${APP}admin/business`);
+    await visible(d, 'QR de la app');
+    const [cartel] = await Promise.all([
+      d.context().waitForEvent('page'),
+      d.getByTestId('imprimir-cartel').click(),
+    ]);
+    await cartel.getByText('Order ahead').waitFor({ timeout: 10_000 });
+    await cartel.getByText('Pide desde tu teléfono').waitFor();
+    await cartel.waitForFunction(() => { const img = document.querySelector('img.logo'); return img === null || (img.complete && img.naturalWidth > 0); }, null, { timeout: 5000 })
+      // La ventana nueva pide el logo a la app publicada (sin internet aquí).
+      .catch(() => {});
+    await cartel.screenshot({ path: join(here, 'capturas', `${String(n).padStart(2, '0')}b-cartel.png`) });
+    await cartel.close();
+  });
+
+  // -------------------------------------------------------------------
   console.log('Instalar la app');
   const iphone =
     'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';

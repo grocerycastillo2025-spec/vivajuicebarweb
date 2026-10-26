@@ -56,9 +56,15 @@ queda al menos un dueño.
   Instagram. Duran 24 h, 3 días, 7 días o quedan destacadas. Se pueden
   ligar a un producto (botón **Pedir**). Texto en inglés y en español. Al
   abrir la app salen solas una vez por visita, primero las no vistas.
-- **Estadísticas**: ventas, pedidos, ticket promedio, clientes, ventas por
-  día, lo más vendido, lo más consultado e historias más vistas (7, 30 o 90
-  días). Las vistas se cuentan una vez por visitante al día.
+- **Estadísticas** (Hoy, 7, 30 o 90 días): arriba, **En resumen** en
+  frases (cuánto vendiste y si subió o bajó, tu mejor día, la hora pico, lo
+  que más se vende, clientes nuevos y los que regresaron). Luego Ventas,
+  Pedidos, Ticket promedio y Clientes con flecha ▲▼ contra el periodo
+  anterior; ventas por día con línea de promedio (en "Hoy", pedidos por
+  hora); **¿Cuándo te piden?** (mapa de calor día × hora); lo más vendido;
+  **¿Cómo pagan?**; clientes nuevos vs. que regresan; visitas y recompensas
+  entregadas; e interés en la app (productos vistos, historias). Las
+  vistas se cuentan una vez por visitante al día.
 - **Lealtad**: el cliente tiene su **tarjeta** en la app (Puntos → Mi
   tarjeta: un QR y un código tipo `ABCDE-23456`). En el mostrador, la
   tienda toca **Escanear tarjeta** (o escribe el código, o lo escanea con
@@ -74,7 +80,8 @@ queda al menos un dueño.
     Programa de puntos → "El cliente también puede escanear el QR del
     local".
   - Los códigos de canje de 6 letras de antes se siguen validando abajo.
-- **Negocio**: sucursal, horario, pausar pedidos, marca y colores, equipo,
+- **Negocio**: **QR de la app** (Imprimir cartel tamaño carta con tu logo
+  y texto en inglés y español, Descargar QR, Copiar liga), sucursal, horario, pausar pedidos, marca y colores, equipo,
   **impuestos y recargos** y **formas de pago** (ver [PAGOS.md](PAGOS.md)).
   En cada producto (Menú) se elige si cobra impuesto y, opcional, su tasa
   propia.
