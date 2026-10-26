@@ -99,6 +99,8 @@ export default function VisitScreen(): ReactNode {
         />
       ) : f.kind === 'invalid_code' ? (
         <Result icon="qr-code-outline" tone="danger" title={strings.visit.invalidTitle} body={strings.visit.invalidBody} styles={styles} colors={colors} />
+      ) : f.kind === 'staff_scans' ? (
+        <Result icon="qr-code-outline" tone="muted" title={strings.visit.staffScansTitle} body={strings.visit.staffScansBody} styles={styles} colors={colors} />
       ) : f.kind === 'loyalty_disabled' ? (
         <Result icon="pause-circle-outline" tone="muted" title={strings.visit.disabledTitle} body={strings.visit.disabledBody} styles={styles} colors={colors} />
       ) : (

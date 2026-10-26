@@ -44,8 +44,9 @@ end $$;
 -- ---------------------------------------------------------------------
 select pg_temp.como('bbbbbbbb-0000-4000-8000-000000000001');
 
+-- Desde 0032 el QR del local hay que prenderlo (self_checkin).
 update public.loyalty_programs
-   set enabled = true, points_per_visit = 25, visit_cooldown_hours = 20
+   set enabled = true, points_per_visit = 25, visit_cooldown_hours = 20, self_checkin = true
  where restaurant_id = '11111111-1111-4111-8111-111111111111';
 
 insert into public.rewards (tenant_id, name, cost_points)

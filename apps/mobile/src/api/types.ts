@@ -95,6 +95,8 @@ export interface LoyaltyProgramRow {
   // Migracion 0021: puntos por visita (QR del local).
   points_per_visit?: number;
   visit_cooldown_hours?: number;
+  // 0032: el cliente también puede escanear el QR del local.
+  self_checkin?: boolean;
 }
 
 export interface LoyaltyAccountRow {
@@ -109,6 +111,8 @@ export interface RewardRow {
   description: string | null;
   image_url: string | null;
   cost_points: number;
+  // 0032: {"es": {"name", "description"}}
+  i18n?: unknown;
 }
 
 export interface ProfileRow {

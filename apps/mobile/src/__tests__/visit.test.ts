@@ -70,3 +70,9 @@ describe('errores', () => {
     assert.equal(pointsMissing(150, 100), 0);
   });
 });
+
+describe('QR del local apagado (0032)', () => {
+  it('pide mostrar la tarjeta', () => {
+    assert.deepEqual(parseVisitError('self_checkin_disabled'), { kind: 'staff_scans' });
+  });
+});

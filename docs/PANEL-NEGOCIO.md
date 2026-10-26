@@ -19,7 +19,7 @@ Supabase y los maneja el dueño desde `/admin`, dentro de la misma app.
 | Ver el menú y pedir | ✔ | ✔ | ✔ |
 | Ver y mover pedidos, cancelar con motivo | — | ✔ | ✔ |
 | Marcar "Pago recibido" | — | ✔ | ✔ |
-| Validar canjes de puntos | — | ✔ | ✔ |
+| Escanear la tarjeta del cliente, sumar visita, entregar recompensa | — | ✔ | ✔ |
 | Agotar / encender productos y opciones | — | ✔ | ✔ |
 | Pausar / reanudar los pedidos de la app | — | ✔ | ✔ |
 | Menú, precios, fotos, historias | — | — | ✔ |
@@ -59,9 +59,21 @@ queda al menos un dueño.
 - **Estadísticas**: ventas, pedidos, ticket promedio, clientes, ventas por
   día, lo más vendido, lo más consultado e historias más vistas (7, 30 o 90
   días). Las vistas se cuentan una vez por visitante al día.
-- **Lealtad**: puntos por visita con el QR del local (fijo para imprimir o
-  en pantalla, cambia cada minuto), horas mínimas entre visitas,
-  recompensas y validación de canjes (código de 6 letras).
+- **Lealtad**: el cliente tiene su **tarjeta** en la app (Puntos → Mi
+  tarjeta: un QR y un código tipo `ABCDE-23456`). En el mostrador, la
+  tienda toca **Escanear tarjeta** (o escribe el código, o lo escanea con
+  la cámara del teléfono) y ve el nombre, los puntos y cuánto le falta para
+  cada recompensa. **Sumar visita** (una cada X horas). Cuando ya le
+  alcanza, sale **"¡Fulano ya tiene su recompensa!"**: se la das y tocas
+  **Entregar** → se le descuentan esos puntos (su conteo vuelve a empezar)
+  y queda en **Recompensas entregadas** con quién la dio y cuándo. El
+  cliente también lo ve en su app.
+  - Puedes tener **varias recompensas activas** a la vez (ej. 10 pts =
+    shot, 30 pts = jugo), cada una con nombre en español e inglés.
+  - El QR fijo del local (el cliente escanea) queda apagado; se prende en
+    Programa de puntos → "El cliente también puede escanear el QR del
+    local".
+  - Los códigos de canje de 6 letras de antes se siguen validando abajo.
 - **Negocio**: sucursal, horario, pausar pedidos, marca y colores, equipo,
   **impuestos y recargos** y **formas de pago** (ver [PAGOS.md](PAGOS.md)).
   En cada producto (Menú) se elige si cobra impuesto y, opcional, su tasa

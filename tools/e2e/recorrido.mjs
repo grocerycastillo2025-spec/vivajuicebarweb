@@ -90,6 +90,14 @@ await db`select app.grant_restaurant_role('cajero@vivajuice.test', ${RESTAURANT}
 await db`update public.stores set zelle_recipient = '+17324968863', zelle_name = 'VIVA Juice and Coffee',
            payment_options = payment_options || '{"zelle": true}'::jsonb where id = ${STORE}`;
 await db`update public.store_hours set opens_at = '00:00', closes_at = '23:59' where store_id = ${STORE}`;
+// Lealtad: 10 puntos por visita; un shot a los 10 y un jugo a los 30.
+await db`insert into public.loyalty_programs (restaurant_id, enabled, points_per_visit, visit_cooldown_hours)
+           values (${RESTAURANT}, true, 10, 20)
+           on conflict (restaurant_id) do update set enabled = true, points_per_visit = 10, visit_cooldown_hours = 20`;
+await db`insert into public.rewards (tenant_id, name, cost_points, i18n) values
+           (${RESTAURANT}, 'Free shot', 10, '{"es":{"name":"Shot gratis"}}'),
+           (${RESTAURANT}, 'Free juice', 30, '{"es":{"name":"Jugo gratis"}}')`;
+await db`update public.app_settings set features = features || '{"loyalty": true}'::jsonb where restaurant_id = ${RESTAURANT}`;
 
 try {
   // -------------------------------------------------------------------
@@ -220,8 +228,13 @@ try {
     await d.getByTestId('guardar-impuestos').click();
     await visible(d, 'Guardado');
     await d.getByTestId('guardar-pagos').click();
-    await visible(d, 'Guardado');
-    const [tienda] = await db`select payment_options from public.stores where id = ${STORE}`;
+    // El "Guardado" de impuestos ya está en pantalla: se espera a la base.
+    let tienda;
+    for (let i = 0; i < 40; i += 1) {
+      [tienda] = await db`select payment_options from public.stores where id = ${STORE}`;
+      if (tienda.payment_options.stripe === true && tienda.payment_options.paypal === true) break;
+      await d.waitForTimeout(250);
+    }
     if (tienda.payment_options.stripe !== true || tienda.payment_options.paypal !== true) {
       throw new Error(`No se guardaron Stripe y PayPal: ${JSON.stringify(tienda.payment_options)}`);
     }
@@ -346,6 +359,52 @@ try {
     }
     const [item] = await db`select price_cents from public.catalog_items where clover_item_id = 'viva-juice-green'`;
     if (Number(item.price_cents) !== 850) throw new Error('La tienda cambió un precio');
+  });
+
+  // -------------------------------------------------------------------
+  console.log('Lealtad: la tienda escanea la tarjeta del cliente');
+  await paso(c, 'cliente-mi-tarjeta', async () => {
+    await c.goto(`${APP}rewards`);
+    await visible(c, 'Mi tarjeta');
+    await visible(c, 'Muéstrala en el mostrador');
+    await visible(c, 'Shot gratis');
+    await visible(c, 'Te falta 1 visita');
+  });
+  const [cuentaAna] = await db`select a.card_code from public.loyalty_accounts a join auth.users u on u.id = a.user_id
+                                where u.email = 'ana@example.test'`;
+  if (!cuentaAna?.card_code) throw new Error('Ana no tiene tarjeta');
+  await paso(t, 'tienda-abre-tarjeta', async () => {
+    await t.goto(`${APP}admin/lealtad`);
+    await visible(t, 'Tarjeta del cliente');
+    await t.getByLabel('O escribe el código de la tarjeta').fill(`${cuentaAna.card_code.slice(0, 5)}-${cuentaAna.card_code.slice(5)}`);
+    await t.getByTestId('abrir-tarjeta').click();
+    await visible(t, 'Ana');
+    await visible(t, 'Primera visita');
+  });
+  await paso(t, 'tienda-suma-visita-y-avisa', async () => {
+    await t.getByTestId('sumar-visita').click();
+    await visible(t, '+10 puntos. Ahora tiene 10.');
+    await visible(t, 'ya tiene su recompensa');
+    await visible(t, 'Ya sumó su visita');
+  });
+  await paso(t, 'tienda-entrega-recompensa', async () => {
+    await t.getByTestId('entregar').click();
+    await visible(t, '¿Entregar Shot gratis?');
+    await t.getByTestId('confirmar-entrega').click();
+    await visible(t, 'Listo: Shot gratis para Ana');
+    const [a] = await db`select points_balance from public.loyalty_accounts where card_code = ${cuentaAna.card_code}`;
+    if (Number(a.points_balance) !== 0) throw new Error(`El conteo no volvió a 0: ${a.points_balance}`);
+  });
+  await paso(t, 'tienda-historial-recompensas', async () => {
+    await t.goto(`${APP}admin/lealtad`);
+    await visible(t, 'Recompensas entregadas');
+    await visible(t, 'Shot gratis → Ana');
+    await visible(t, 'entregó cajero@vivajuice.test');
+  });
+  await paso(c, 'cliente-recompensa-recibida', async () => {
+    await c.goto(`${APP}rewards`);
+    await visible(c, 'Recompensas recibidas');
+    await visible(c, 'Te faltan 30 pts');
   });
 
   // -------------------------------------------------------------------

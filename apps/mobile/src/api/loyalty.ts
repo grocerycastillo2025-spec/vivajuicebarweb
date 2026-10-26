@@ -7,6 +7,7 @@
  */
 
 import { dataError } from '../domain/errors';
+import type { CardState } from '../domain/loyalty-card';
 import type { VisitPayload } from '../domain/visit';
 import { getSupabase } from '../supabase';
 import type { LoyaltyProgramRow, RewardRow } from './types';
@@ -75,9 +76,68 @@ export async function fetchMyRedemptions(userId: string): Promise<RedemptionRow[
   return data ?? [];
 }
 
+export interface MyCard {
+  readonly code: string;
+  readonly balance: number;
+  readonly lifetime: number;
+}
+
+/** Tarjeta del cliente (0032). `null` si la base todavía no la tiene. */
+export async function fetchMyCard(restaurantId: string): Promise<MyCard | null> {
+  const { data, error } = await getSupabase().rpc('my_loyalty_card', { p_restaurant_id: restaurantId });
+  if (error?.code === 'PGRST202' || error?.code === '42883') return null;
+  fail(error);
+  return (data as MyCard | null) ?? null;
+}
+
 // ---------------------------------------------------------------------
 // PANEL
 // ---------------------------------------------------------------------
+
+// Tarjeta del cliente: la tienda la escanea (0032). Los errores llegan con
+// el código de la base (`card_not_found`, `too_soon:...`) y la pantalla los
+// traduce con `parseCardError`.
+export function lookupCard(storeId: string, card: string): Promise<CardState> {
+  return rpc('loyalty_lookup', { p_store_id: storeId, p_card: card });
+}
+
+export function addVisit(storeId: string, card: string): Promise<CardState> {
+  return rpc('staff_add_visit', { p_store_id: storeId, p_card: card });
+}
+
+export function giveReward(storeId: string, card: string, rewardId: string): Promise<CardState> {
+  return rpc('staff_give_reward', { p_store_id: storeId, p_card: card, p_reward_id: rewardId });
+}
+
+export interface GivenReward {
+  readonly id: string;
+  readonly given_at: string;
+  readonly reward_name: string | null;
+  readonly customer: string | null;
+  readonly given_by: string | null;
+  readonly status: 'issued' | 'used' | 'canceled';
+  readonly code: string | null;
+  readonly reward_i18n?: unknown;
+}
+
+/** A quién se le dio qué y quién lo entregó. Sin la 0032, los canjes de antes. */
+export async function fetchRewardsGiven(restaurantId: string): Promise<GivenReward[]> {
+  const { data, error } = await getSupabase().rpc('rewards_given', { p_restaurant_id: restaurantId, p_limit: 30 });
+  if (error?.code === 'PGRST202' || error?.code === '42883') {
+    const old = await fetchRecentRedemptions(restaurantId);
+    return old.map((r) => ({
+      id: r.id,
+      given_at: r.used_at ?? r.redeemed_at,
+      reward_name: r.reward_name,
+      customer: null,
+      given_by: null,
+      status: r.status,
+      code: r.code,
+    }));
+  }
+  fail(error);
+  return Array.isArray(data) ? (data as GivenReward[]) : [];
+}
 
 export interface VisitQr {
   readonly mode: 'static' | 'rotating';
@@ -111,9 +171,7 @@ export function validateRedemptionCode(code: string): Promise<UsedRedemption> {
 export async function fetchOwnerProgram(restaurantId: string): Promise<LoyaltyProgramRow | null> {
   const { data, error } = await getSupabase()
     .from('loyalty_programs')
-    .select(
-      'restaurant_id, enabled, points_per_dollar, min_points_to_redeem, points_per_visit, visit_cooldown_hours',
-    )
+    .select('*')
     .eq('restaurant_id', restaurantId)
     .maybeSingle<LoyaltyProgramRow>();
   fail(error);
@@ -127,12 +185,17 @@ export async function fetchOwnerProgram(restaurantId: string): Promise<LoyaltyPr
  */
 export async function saveProgram(
   restaurantId: string,
-  input: { enabled: boolean; points_per_visit: number; visit_cooldown_hours: number },
+  input: { enabled: boolean; points_per_visit: number; visit_cooldown_hours: number; self_checkin?: boolean },
 ): Promise<void> {
   const supabase = getSupabase();
-  const saved = await supabase
+  let saved = await supabase
     .from('loyalty_programs')
     .upsert({ restaurant_id: restaurantId, ...input }, { onConflict: 'restaurant_id' });
+  if (saved.error?.code === 'PGRST204' || saved.error?.code === '42703') {
+    // Base sin la 0032: se guarda lo demás.
+    const { self_checkin: _ignored, ...rest } = input;
+    saved = await supabase.from('loyalty_programs').upsert({ restaurant_id: restaurantId, ...rest }, { onConflict: 'restaurant_id' });
+  }
   fail(saved.error);
 
   const current = await supabase
@@ -153,7 +216,7 @@ export interface AdminReward extends RewardRow {
 export async function fetchAdminRewards(restaurantId: string): Promise<AdminReward[]> {
   const { data, error } = await getSupabase()
     .from('rewards')
-    .select('id, name, description, image_url, cost_points, active')
+    .select('*')
     .eq('tenant_id', restaurantId)
     .order('cost_points')
     .returns<AdminReward[]>();
@@ -161,22 +224,44 @@ export async function fetchAdminRewards(restaurantId: string): Promise<AdminRewa
   return data ?? [];
 }
 
+/** Texto en español guardado en `i18n.es`. */
+export function rewardSpanish(reward: AdminReward | null, field: 'name' | 'description'): string {
+  const es = (reward?.i18n as { es?: Record<string, unknown> } | undefined)?.es;
+  const value = es?.[field];
+  return typeof value === 'string' ? value : '';
+}
+
 export async function saveReward(
   restaurantId: string,
-  reward: { id?: string; name: string; description: string; cost_points: number; active: boolean },
+  reward: {
+    id?: string;
+    name: string;
+    description: string;
+    nameEs?: string;
+    descriptionEs?: string;
+    cost_points: number;
+    active: boolean;
+  },
 ): Promise<void> {
-  const row = {
+  const es: Record<string, string> = {};
+  if ((reward.nameEs ?? '').trim() !== '') es['name'] = (reward.nameEs ?? '').trim();
+  if ((reward.descriptionEs ?? '').trim() !== '') es['description'] = (reward.descriptionEs ?? '').trim();
+  const base = {
     tenant_id: restaurantId,
-    name: reward.name.trim(),
+    // Sin inglés, el español queda de texto base.
+    name: reward.name.trim() !== '' ? reward.name.trim() : (reward.nameEs ?? '').trim(),
     description: reward.description.trim() === '' ? null : reward.description.trim(),
     cost_points: reward.cost_points,
     active: reward.active,
   };
   const supabase = getSupabase();
-  const { error } =
+  const write = (row: Record<string, unknown>) =>
     reward.id === undefined
-      ? await supabase.from('rewards').insert(row)
-      : await supabase.from('rewards').update(row).eq('id', reward.id);
+      ? supabase.from('rewards').insert(row)
+      : supabase.from('rewards').update(row).eq('id', reward.id);
+  let { error } = await write({ ...base, i18n: Object.keys(es).length === 0 ? {} : { es } });
+  // Base sin la 0032: sin traducción.
+  if (error?.code === 'PGRST204' || error?.code === '42703') ({ error } = await write(base));
   fail(error);
 }
 

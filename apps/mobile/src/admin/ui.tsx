@@ -54,7 +54,10 @@ export function AdminShell({
   const { isOwner, store } = useAdmin();
 
   const active = (href: string): boolean =>
-    href === '/admin' ? pathname === '/admin' || pathname === '/admin/' : pathname.startsWith(href);
+    href === '/admin'
+      ? pathname === '/admin' || pathname === '/admin/'
+      : pathname.startsWith(href) ||
+        (href === '/admin/lealtad' && (pathname.startsWith('/admin/cliente') || pathname.startsWith('/admin/escanear')));
 
   const body = <View style={styles.body}>{children}</View>;
 

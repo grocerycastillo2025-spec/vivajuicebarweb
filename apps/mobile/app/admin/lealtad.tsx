@@ -14,8 +14,9 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import {
   fetchAdminRewards,
   fetchOwnerProgram,
-  fetchRecentRedemptions,
+  fetchRewardsGiven,
   fetchVisitQr,
+  rewardSpanish,
   regenerateVisitCode,
   saveProgram,
   saveReward,
@@ -25,6 +26,7 @@ import {
   type VisitQr,
 } from '../../src/api/loyalty';
 import { useAdmin } from '../../src/admin/admin-context';
+import { CardCodeInput } from '../../src/admin/CardCodeInput';
 import { appPublicUrl, printVisitQr, qrDataUrl } from '../../src/admin/qr';
 import { adminStrings } from '../../src/admin/strings';
 import { AdminShell, Card, Field, Notice, Toggle, createAdminStyles } from '../../src/admin/ui';
@@ -32,6 +34,7 @@ import { DataState } from '../../src/components/DataState';
 import { Button } from '../../src/components/ui';
 import type { BrandColors } from '../../src/domain/branding';
 import { moneyDefaults } from '../../src/domain/money';
+import { rewardLabel } from '../../src/domain/loyalty-card';
 import { buildVisitUrl, normalizeRedemptionCode, parseUseRedemptionError } from '../../src/domain/visit';
 import { useAsync } from '../../src/hooks/use-async';
 import { useBranding, useColors } from '../../src/state/branding-context';
@@ -54,12 +57,13 @@ function errorText(cause: unknown): string {
 
 export default function AdminLoyaltyScreen(): ReactNode {
   const { restaurantId, store, isOwner } = useAdmin();
+  const router = useRouter();
   const colors = useColors();
   const styles = useMemo(() => ({ ...createAdminStyles(colors), ...createStyles(colors) }), [colors]);
 
   const load = useCallback(async () => {
     const [redemptions, program, rewards, qr] = await Promise.all([
-      fetchRecentRedemptions(restaurantId),
+      fetchRewardsGiven(restaurantId),
       isOwner ? fetchOwnerProgram(restaurantId) : Promise.resolve(null),
       isOwner ? fetchAdminRewards(restaurantId) : Promise.resolve([]),
       isOwner ? fetchVisitQr(store.id) : Promise.resolve(null),
@@ -83,15 +87,24 @@ export default function AdminLoyaltyScreen(): ReactNode {
     <AdminShell>
       <View style={styles.layout}>
         <View style={styles.column}>
-          <ValidateCard onDone={refresh} />
-          <Card title={t.recent}>
-            {data.redemptions.length === 0 ? <Text style={styles.hint}>{t.noRecent}</Text> : null}
+          <Card title={t.cardTitle}>
+            <Text style={styles.hint}>{t.cardHint}</Text>
+            <Button label={t.scanCard} onPress={() => router.push('/admin/escanear')} testID="escanear-tarjeta" />
+            <CardCodeInput />
+          </Card>
+          <Card title={t.history}>
+            {data.redemptions.length === 0 ? <Text style={styles.hint}>{t.historyEmpty}</Text> : null}
             {data.redemptions.map((r) => (
               <View key={r.id} style={styles.row}>
                 <View style={styles.rowBody}>
-                  <Text style={styles.rowTitle}>{r.reward_name}</Text>
+                  <Text style={styles.rowTitle}>
+                    {rewardLabel({ name: r.reward_name ?? '', i18n: r.reward_i18n }, 'es')}
+                    {r.customer !== null ? ` → ${r.customer}` : ''}
+                  </Text>
                   <Text style={styles.hint}>
-                    {r.code} · {when(r.redeemed_at)}
+                    {when(r.given_at)}
+                    {r.given_by !== null ? ` · ${t.givenBy(r.given_by)}` : ''}
+                    {r.code !== null ? ` · ${r.code}` : ''}
                   </Text>
                 </View>
                 <Text style={[styles.status, r.status === 'issued' && styles.statusOpen]}>
@@ -100,12 +113,13 @@ export default function AdminLoyaltyScreen(): ReactNode {
               </View>
             ))}
           </Card>
+          <ValidateCard onDone={refresh} />
         </View>
 
         {isOwner ? (
           <View style={styles.column}>
             {data.program !== null ? <ProgramCard initial={data.program} onSaved={refresh} /> : null}
-            {data.qr !== null ? <QrCard initial={data.qr} /> : null}
+            {data.qr !== null && data.program?.self_checkin === true ? <QrCard initial={data.qr} /> : null}
             <RewardsCard rewards={data.rewards} onSaved={refresh} />
           </View>
         ) : null}
@@ -155,7 +169,7 @@ function ValidateCard({ onDone }: { readonly onDone: () => void }): ReactNode {
 
   return (
     <Card title={t.validateTitle}>
-      <Text style={styles.hint}>{t.validateHint}</Text>
+      <Text style={styles.hint}>{t.legacyHint} {t.validateHint}</Text>
       <View style={styles.inline}>
         <TextInput
           value={code}
@@ -183,7 +197,7 @@ function ProgramCard({
   initial,
   onSaved,
 }: {
-  readonly initial: { enabled: boolean; points_per_visit?: number; visit_cooldown_hours?: number };
+  readonly initial: { enabled: boolean; points_per_visit?: number; visit_cooldown_hours?: number; self_checkin?: boolean };
   readonly onSaved: () => void;
 }): ReactNode {
   const { restaurantId } = useAdmin();
@@ -191,6 +205,7 @@ function ProgramCard({
   const [enabled, setEnabled] = useState(initial.enabled);
   const [perVisit, setPerVisit] = useState(String(initial.points_per_visit ?? 10));
   const [cooldown, setCooldown] = useState(String(initial.visit_cooldown_hours ?? 20));
+  const [selfCheckin, setSelfCheckin] = useState(initial.self_checkin === true);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
 
@@ -203,7 +218,12 @@ function ProgramCard({
     setBusy(true);
     setNotice(null);
     try {
-      await saveProgram(restaurantId, { enabled, points_per_visit: points, visit_cooldown_hours: hours });
+      await saveProgram(restaurantId, {
+        enabled,
+        points_per_visit: points,
+        visit_cooldown_hours: hours,
+        ...(initial.self_checkin === undefined ? {} : { self_checkin: selfCheckin }),
+      });
       setNotice({ tone: 'ok', text: adminStrings.saved });
       branding.reload();
       onSaved();
@@ -232,6 +252,9 @@ function ProgramCard({
         hint={t.cooldownHint}
         error={hoursOk ? null : t.invalidNumber}
       />
+      {initial.self_checkin !== undefined ? (
+        <Toggle label={t.selfCheckin} hint={selfCheckin ? t.selfCheckinHint : t.qrOffHint} value={selfCheckin} onValueChange={setSelfCheckin} />
+      ) : null}
       {notice !== null ? <Notice tone={notice.tone} text={notice.text} /> : null}
       <Button label={busy ? adminStrings.saving : adminStrings.save} busy={busy} disabled={!pointsOk || !hoursOk} onPress={() => void save()} />
     </Card>
@@ -340,6 +363,7 @@ function RewardsCard({
 
   return (
     <Card title={t.rewardsTitle}>
+      <Text style={styles.hint}>{t.rewardsHint}</Text>
       {rewards.length === 0 ? <Text style={styles.hint}>{t.noRewards}</Text> : null}
       {rewards.map((reward) => (
         <RewardEditor key={reward.id} reward={reward} onSaved={onSaved} />
@@ -361,13 +385,15 @@ function RewardEditor({
   const { restaurantId } = useAdmin();
   const [name, setName] = useState(reward?.name ?? '');
   const [description, setDescription] = useState(reward?.description ?? '');
+  const [nameEs, setNameEs] = useState(rewardSpanish(reward, 'name'));
+  const [descriptionEs, setDescriptionEs] = useState(rewardSpanish(reward, 'description'));
   const [cost, setCost] = useState(reward === null ? '' : String(reward.cost_points));
   const [active, setActive] = useState(reward?.active ?? true);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
 
   const costValue = Number.parseInt(cost, 10);
-  const valid = name.trim() !== '' && /^\d+$/.test(cost.trim()) && costValue > 0;
+  const valid = (name.trim() !== '' || nameEs.trim() !== '') && /^\d+$/.test(cost.trim()) && costValue > 0;
 
   const save = async (): Promise<void> => {
     setBusy(true);
@@ -377,12 +403,16 @@ function RewardEditor({
         ...(reward !== null ? { id: reward.id } : {}),
         name,
         description,
+        nameEs,
+        descriptionEs,
         cost_points: costValue,
         active,
       });
       if (reward === null) {
         setName('');
         setDescription('');
+        setNameEs('');
+        setDescriptionEs('');
         setCost('');
       }
       setNotice({ tone: 'ok', text: adminStrings.saved });
@@ -397,7 +427,9 @@ function RewardEditor({
   return (
     <View style={[styles.rewardBox, reward === null && styles.rewardNew]}>
       {reward === null ? <Text style={styles.rowTitle}>{t.addReward}</Text> : null}
+      <Field label={t.rewardNameEs} value={nameEs} onChangeText={setNameEs} placeholder={t.rewardNameEsPlaceholder} />
       <Field label={t.rewardName} value={name} onChangeText={setName} placeholder={t.rewardNamePlaceholder} />
+      <Field label={t.rewardDescriptionEs} value={descriptionEs} onChangeText={setDescriptionEs} />
       <Field label={t.rewardDescription} value={description} onChangeText={setDescription} />
       <Field label={t.rewardCost} value={cost} onChangeText={setCost} keyboardType="number-pad" />
       {reward !== null ? <Toggle label={t.rewardActive} value={active} onValueChange={setActive} /> : null}

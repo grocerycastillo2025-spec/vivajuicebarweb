@@ -66,6 +66,7 @@ export type VisitFailure =
   | { readonly kind: 'too_soon'; readonly nextAt: Date | null }
   | { readonly kind: 'invalid_code' }
   | { readonly kind: 'loyalty_disabled' }
+  | { readonly kind: 'staff_scans' }
   | { readonly kind: 'auth_required' }
   | { readonly kind: 'unknown'; readonly detail: string };
 
@@ -78,6 +79,8 @@ export function parseVisitError(message: string): VisitFailure {
   if (message.includes('too_soon')) return { kind: 'too_soon', nextAt: null };
   if (message.includes('invalid_code')) return { kind: 'invalid_code' };
   if (message.includes('loyalty_disabled')) return { kind: 'loyalty_disabled' };
+  // 0032: el QR del local está apagado; la tienda escanea la tarjeta.
+  if (message.includes('self_checkin_disabled')) return { kind: 'staff_scans' };
   if (message.includes('auth_required')) return { kind: 'auth_required' };
   return { kind: 'unknown', detail: message };
 }
