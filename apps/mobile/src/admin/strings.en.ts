@@ -34,6 +34,7 @@ export const adminEn: AdminStrings = {
   confirmDelete: 'Yes, delete',
   edit: 'Edit',
   add: 'Add',
+  loading: 'Loading…',
   language: 'Panel language',
 
   orders: {
@@ -207,6 +208,8 @@ export const adminEn: AdminStrings = {
     visitsCount: (n: number): string => (n === 1 ? '1 visit' : `${n} visits`),
     lastVisit: (when: string): string => `Last visit: ${when}`,
     neverVisited: 'First visit',
+    phoneLast4: (d: string): string => `Phone ••• ${d}`,
+    noPhoto: 'No photo: compare the name with the person.',
     givenCount: (n: number): string =>
       n === 0 ? 'No rewards yet' : n === 1 ? '1 reward received' : `${n} rewards received`,
     addVisit: (n: number): string => `Add visit (+${n})`,

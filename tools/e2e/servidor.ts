@@ -228,6 +228,28 @@ async function readBody(req: IncomingMessage): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
+const archivos = new Map<string, { body: Buffer; type: string }>();
+
+/** supabase-js sube un Blob como multipart: se saca la parte del archivo. */
+function archivoDe(raw: Buffer, type: string): { body: Buffer; type: string } {
+  const boundary = /boundary=(.+)$/.exec(type)?.[1];
+  if (!type.startsWith('multipart/form-data') || boundary === undefined) return { body: raw, type };
+  const sep = Buffer.from(`--${boundary}`);
+  let start = raw.indexOf(sep);
+  while (start !== -1) {
+    const next = raw.indexOf(sep, start + sep.length);
+    const part = raw.subarray(start + sep.length, next === -1 ? raw.length : next);
+    const headEnd = part.indexOf('\r\n\r\n');
+    const head = part.subarray(0, headEnd).toString();
+    if (/filename=/.test(head) || /content-type:\s*image\//i.test(head)) {
+      const partType = /content-type:\s*([^\r\n]+)/i.exec(head)?.[1] ?? 'image/jpeg';
+      return { body: part.subarray(headEnd + 4, part.length - 2), type: partType.trim() };
+    }
+    start = next;
+  }
+  return { body: raw, type };
+}
+
 const gateway = createServer((req, res) => {
   void (async () => {
     const url = new URL(req.url ?? '/', SELF);
@@ -249,6 +271,28 @@ const gateway = createServer((req, res) => {
       });
       res.writeHead(upstream.status, { ...CORS, ...out });
       res.end(Buffer.from(await upstream.arrayBuffer()));
+      return;
+    }
+
+    // Storage mínimo para las fotos de perfil (bucket `avatars`): subir,
+    // pedir liga firmada y servirla. Los permisos reales de storage se
+    // prueban en SQL (0034); aquí solo se guarda en memoria.
+    const up = /^\/storage\/v1\/object\/(avatars\/.+)$/.exec(url.pathname);
+    if (up !== null && (req.method === 'POST' || req.method === 'PUT')) {
+      archivos.set(decodeURIComponent(up[1] ?? ''), archivoDe(raw, String(req.headers['content-type'] ?? 'image/jpeg')));
+      return send(res, 200, { Key: up[1] });
+    }
+    const sign = /^\/storage\/v1\/object\/sign\/(avatars\/.+)$/.exec(url.pathname);
+    if (sign !== null && req.method === 'POST') {
+      const key = decodeURIComponent(sign[1] ?? '');
+      if (!archivos.has(key)) return send(res, 404, { error: 'not_found', message: 'Object not found' });
+      return send(res, 200, { signedURL: `/object/sign/${sign[1]}?token=e2e` });
+    }
+    if (sign !== null && req.method === 'GET') {
+      const file = archivos.get(decodeURIComponent(sign[1] ?? ''));
+      if (file === undefined) return send(res, 404, { error: 'not_found' });
+      res.writeHead(200, { ...CORS, 'content-type': file.type });
+      res.end(file.body);
       return;
     }
 

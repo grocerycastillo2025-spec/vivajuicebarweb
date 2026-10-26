@@ -64,6 +64,9 @@ export interface CardReward {
 export interface CardState {
   readonly card: string;
   readonly customer: string;
+  /** 0034: foto (bucket privado) y últimos 4 del teléfono, para reconocerlo. */
+  readonly avatar_path?: string | null;
+  readonly phone_last4?: string | null;
   readonly balance: number;
   readonly lifetime: number;
   readonly visits: number;

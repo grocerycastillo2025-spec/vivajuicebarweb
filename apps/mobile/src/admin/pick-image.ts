@@ -81,6 +81,14 @@ export async function pickProductPhoto(): Promise<PickedImage | null> {
   return shrink(file, 1200, false);
 }
 
+/** Foto de perfil del cliente: JPEG, lado mayor 512 px (~50 KB). */
+export async function pickAvatar(): Promise<PickedImage | null> {
+  if (!canPickImages) return null;
+  const file = await chooseFile();
+  if (file === null) return null;
+  return shrink(file, 512, false);
+}
+
 /** Logo: PNG para conservar la transparencia, lado mayor 800 px. */
 export async function pickLogo(): Promise<PickedImage | null> {
   if (!canPickImages) return null;

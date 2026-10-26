@@ -238,17 +238,22 @@ export function Notice({
   tone,
   text,
 }: {
-  readonly tone: 'ok' | 'error';
+  readonly tone: 'ok' | 'error' | 'info';
   readonly text: string;
 }): ReactNode {
   const colors = useColors();
   const styles = useMemo(() => createAdminStyles(colors), [colors]);
   return (
-    <View style={[styles.notice, tone === 'error' ? styles.noticeError : styles.noticeOk]}>
+    <View
+      style={[
+        styles.notice,
+        tone === 'error' ? styles.noticeError : tone === 'info' ? { borderColor: colors.border } : styles.noticeOk,
+      ]}
+    >
       <Ionicons
-        name={tone === 'error' ? 'alert-circle' : 'checkmark-circle'}
+        name={tone === 'error' ? 'alert-circle' : tone === 'info' ? 'information-circle' : 'checkmark-circle'}
         size={18}
-        color={tone === 'error' ? colors.danger : colors.success}
+        color={tone === 'error' ? colors.danger : tone === 'info' ? colors.textMuted : colors.success}
       />
       <Text style={styles.noticeText}>{text}</Text>
     </View>

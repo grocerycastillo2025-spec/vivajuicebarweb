@@ -20,6 +20,7 @@ import { LanguageToggle } from '../../src/components/LanguageToggle';
 import { Screen } from '../../src/components/Screen';
 import { Button } from '../../src/components/ui';
 import { PushCard } from '../../src/components/PushCard';
+import { ProfileEditor } from '../../src/components/ProfileEditor';
 import type { BrandColors } from '../../src/domain/branding';
 import { readEnv } from '../../src/env';
 import { useAsync } from '../../src/hooks/use-async';
@@ -30,12 +31,6 @@ import { useSession } from '../../src/state/session-context';
 import { useStores } from '../../src/state/store-context';
 import { radius, spacing, type as typography } from '../../src/theme';
 import { strings } from '../../src/strings';
-
-function personName(profile: ProfileRow | null, email: string | undefined): string {
-  const full = [profile?.first_name, profile?.last_name].filter(Boolean).join(' ').trim();
-  if (full !== '') return full;
-  return email ?? strings.profile.customer;
-}
 
 export default function ProfileScreen(): ReactNode {
   const { user, loading: sessionLoading, signOut } = useSession();
@@ -97,16 +92,14 @@ export default function ProfileScreen(): ReactNode {
       {user === null ? (
         <AuthForm />
       ) : (
-        <View style={styles.card}>
-          <Text style={styles.cardTitle}>{personName(data?.profile ?? null, user.email)}</Text>
-          <Text style={styles.cardBody}>{user.email}</Text>
-
-          {data?.profile?.phone != null ? (
-            <Text style={styles.cardBody}>{data.profile.phone}</Text>
-          ) : null}
-
-          <Button label={strings.auth.signOut} variant="outline" onPress={onSignOut} />
-        </View>
+        <ProfileEditor
+          key={`${data?.profile?.first_name ?? ''}|${data?.profile?.phone ?? ''}|${data?.profile?.avatar_path ?? ''}`}
+          userId={user.id}
+          email={user.email}
+          profile={data?.profile ?? null}
+          onSaved={refresh}
+          onSignOut={onSignOut}
+        />
       )}
 
       {data?.membership != null ? (

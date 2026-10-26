@@ -74,6 +74,10 @@ queda al menos un dueño.
   **Entregar** → se le descuentan esos puntos (su conteo vuelve a empezar)
   y queda en **Recompensas entregadas** con quién la dio y cuándo. El
   cliente también lo ve en su app.
+  - Para reconocerlo, la ficha muestra su **foto** y los **últimos 4
+    dígitos de su teléfono** (los pone el cliente en Perfil → Editar
+    perfil; la app se lo sugiere bajo su tarjeta). La foto está en un
+    bucket privado: solo la ven el cliente y quien trabaja en el negocio.
   - Puedes tener **varias recompensas activas** a la vez (ej. 10 pts =
     shot, 30 pts = jugo), cada una con nombre en español e inglés.
   - El QR fijo del local (el cliente escanea) queda apagado; se prende en

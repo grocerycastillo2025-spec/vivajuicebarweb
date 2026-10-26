@@ -34,6 +34,7 @@ export const adminEs = {
   confirmDelete: 'Sí, eliminar',
   edit: 'Editar',
   add: 'Agregar',
+  loading: 'Cargando…',
   language: 'Idioma del panel',
 
   orders: {
@@ -209,6 +210,8 @@ export const adminEs = {
     visitsCount: (n: number): string => (n === 1 ? '1 visita' : `${n} visitas`),
     lastVisit: (when: string): string => `Última visita: ${when}`,
     neverVisited: 'Primera visita',
+    phoneLast4: (d: string): string => `Tel. ••• ${d}`,
+    noPhoto: 'Sin foto: compara el nombre con la persona.',
     givenCount: (n: number): string =>
       n === 0 ? 'Sin recompensas todavía' : n === 1 ? '1 recompensa recibida' : `${n} recompensas recibidas`,
     addVisit: (n: number): string => `Sumar visita (+${n})`,

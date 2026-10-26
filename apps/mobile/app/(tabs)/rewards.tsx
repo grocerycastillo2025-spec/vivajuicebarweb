@@ -14,7 +14,7 @@ import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { appPublicUrl, qrDataUrl } from '../../src/admin/qr';
-import { fetchLoyaltyAccount, fetchLoyaltyProgram, fetchRewards } from '../../src/api/account';
+import { fetchLoyaltyAccount, fetchLoyaltyProgram, fetchProfile, fetchRewards } from '../../src/api/account';
 import { cancelRedemption, fetchMyCard, fetchMyRedemptions, type MyCard, type RedemptionRow } from '../../src/api/loyalty';
 import type { LoyaltyAccountRow, LoyaltyProgramRow, RewardRow } from '../../src/api/types';
 import { DataState } from '../../src/components/DataState';
@@ -35,6 +35,7 @@ interface RewardsData {
   readonly program: LoyaltyProgramRow | null;
   readonly account: LoyaltyAccountRow | null;
   readonly card: MyCard | null;
+  readonly incomplete: boolean;
   readonly rewards: readonly RewardRow[];
   readonly redemptions: readonly RedemptionRow[];
 }
@@ -54,7 +55,7 @@ export default function RewardsScreen(): ReactNode {
   const restaurantId = selectedStore?.restaurant_id ?? null;
 
   const load = useCallback(async (): Promise<RewardsData> => {
-    if (restaurantId === null) return { program: null, account: null, card: null, rewards: [], redemptions: [] };
+    if (restaurantId === null) return { program: null, account: null, card: null, incomplete: false, rewards: [], redemptions: [] };
     const [program, rewards, account, redemptions] = await Promise.all([
       fetchLoyaltyProgram(restaurantId),
       fetchRewards(restaurantId),
@@ -62,7 +63,9 @@ export default function RewardsScreen(): ReactNode {
       user === null ? Promise.resolve([]) : fetchMyRedemptions(user.id),
     ]);
     const card = user !== null && program?.enabled === true ? await fetchMyCard(restaurantId) : null;
-    return { program, account, card, rewards, redemptions };
+    const profile = card !== null && user !== null ? await fetchProfile(user.id).catch(() => null) : null;
+    const incomplete = profile !== null && (!profile.avatar_path || !profile.phone);
+    return { program, account, card, incomplete, rewards, redemptions };
   }, [restaurantId, user]);
 
   const { data, error, loading, refreshing, refresh, reload } = useAsync(load, [restaurantId, user?.id]);
@@ -147,6 +150,12 @@ export default function RewardsScreen(): ReactNode {
             {formatCard(card.code)}
           </Text>
           <Text style={styles.cardHint}>{strings.rewards.cardHint}</Text>
+          {data?.incomplete === true ? (
+            <Pressable accessibilityRole="link" onPress={() => router.push('/profile')} style={styles.completeRow}>
+              <Ionicons name="camera-outline" size={18} color={colors.primary} />
+              <Text style={styles.completeText}>{strings.profile.completeForCard}</Text>
+            </Pressable>
+          ) : null}
         </View>
       ) : null}
 
@@ -287,6 +296,8 @@ function createStyles(colors: BrandColors) {
     qr: { width: 220, height: 220 },
     cardCode: { color: colors.text, fontSize: 22, fontWeight: '800', letterSpacing: 3 },
     cardHint: { color: colors.textMuted, fontSize: typography.label.fontSize, textAlign: 'center' },
+    completeRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, paddingVertical: spacing.xs },
+    completeText: { color: colors.primary, fontSize: typography.label.fontSize, fontWeight: '700', textDecorationLine: 'underline' },
 
     section: { gap: spacing.sm },
     empty: { color: colors.textMuted, fontSize: typography.body.fontSize },

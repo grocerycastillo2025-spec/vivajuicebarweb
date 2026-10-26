@@ -98,6 +98,14 @@ jobs:
           PGPASSWORD: postgres
         run: bash scripts/sql/probar-entrega.sh entregas/01-base-viva-juice.sql
 
+      # Permisos de fotos (storage) solo existen en la base tipo Supabase.
+      - name: Fotos de clientes con storage
+        env:
+          PGHOST: localhost
+          PGUSER: postgres
+          PGPASSWORD: postgres
+        run: psql -d entrega_prueba -v ON_ERROR_STOP=1 -f supabase/tests/0034_ficha_cliente.test.sql
+
       # Stripe y PayPal de punta a punta contra la base de la entrega, con
       # proveedores falsos: el SQL de las Edge Functions contra columnas reales.
       - name: Cobro en línea contra la base

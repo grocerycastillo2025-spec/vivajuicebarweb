@@ -14,6 +14,9 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
+import { Image } from 'expo-image';
+
+import { avatarUrl } from '../../src/api/account';
 import { addVisit, giveReward, lookupCard } from '../../src/api/loyalty';
 import { MISSING_SQL_FILE } from '../../src/api/new-columns';
 import { useAdmin } from '../../src/admin/admin-context';
@@ -75,6 +78,17 @@ export default function AdminCustomerCardScreen(): ReactNode {
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void avatarUrl(state?.avatar_path).then((url) => {
+      if (!cancelled) setPhotoUrl(url);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [state?.avatar_path]);
 
   const load = useCallback(async () => {
     if (card === null) {
@@ -139,11 +153,19 @@ export default function AdminCustomerCardScreen(): ReactNode {
       <View style={styles.layout}>
         <View style={styles.column}>
           <View style={styles.hero} testID="ficha-cliente">
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{state.customer.slice(0, 1).toUpperCase()}</Text>
+            <View style={[styles.avatar, photoUrl !== null && styles.avatarPhoto]}>
+              {photoUrl !== null ? (
+                <Image source={{ uri: photoUrl }} style={styles.avatarImg} contentFit="cover" accessibilityLabel={state.customer} />
+              ) : (
+                <Text style={styles.avatarText}>{state.customer.slice(0, 1).toUpperCase()}</Text>
+              )}
             </View>
             <View style={styles.heroText}>
               <Text style={styles.name}>{state.customer}</Text>
+              {state.phone_last4 != null ? (
+                <Text style={styles.phone} testID="telefono-cliente">{t.phoneLast4(state.phone_last4)}</Text>
+              ) : null}
+              {photoUrl === null ? <Text style={styles.heroHint}>{t.noPhoto}</Text> : null}
               <Text style={styles.heroHint}>
                 {formatCard(state.card)} · {t.visitsCount(state.visits)} · {t.givenCount(state.rewards_given)}
               </Text>
@@ -268,8 +290,12 @@ function createStyles(colors: BrandColors) {
       backgroundColor: colors.onPrimary,
       alignItems: 'center',
       justifyContent: 'center',
+      overflow: 'hidden',
     },
     avatarText: { color: colors.primary, fontSize: 26, fontWeight: '800' },
+    avatarPhoto: { width: 96, height: 96, borderRadius: 48, borderWidth: 3, borderColor: colors.onPrimary },
+    avatarImg: { width: '100%', height: '100%' },
+    phone: { color: colors.onPrimary, fontSize: typography.body.fontSize, fontWeight: '800', letterSpacing: 1 },
     heroText: { flex: 1, minWidth: 0, gap: 2 },
     name: { color: colors.onPrimary, fontSize: typography.title.fontSize, fontWeight: '800' },
     heroHint: { color: colors.onPrimary, opacity: 0.9, fontSize: typography.label.fontSize },

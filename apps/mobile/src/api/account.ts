@@ -6,14 +6,54 @@ import { getSupabase } from '../supabase';
 import type { LoyaltyAccountRow, LoyaltyProgramRow, ProfileRow, RewardRow } from './types';
 
 export async function fetchProfile(userId: string): Promise<ProfileRow | null> {
-  const { data, error } = await getSupabase()
-    .from('profiles')
-    .select('id, first_name, last_name, phone, marketing_opt_in, default_store_id')
-    .eq('id', userId)
-    .maybeSingle<ProfileRow>();
+  const query = (withAvatar: boolean) =>
+    getSupabase()
+      .from('profiles')
+      .select(`id, first_name, last_name, phone, marketing_opt_in, default_store_id${withAvatar ? ', avatar_path' : ''}`)
+      .eq('id', userId)
+      .maybeSingle<ProfileRow>();
+  let { data, error } = await query(true);
+  // Base sin la 0034: sin foto.
+  if (error?.code === '42703') ({ data, error } = await query(false));
 
   if (error) throw dataError(error.message, error.code);
   return data;
+}
+
+export interface ProfileInput {
+  readonly first_name: string | null;
+  readonly last_name: string | null;
+  readonly phone: string | null;
+  readonly avatar_path?: string | null;
+}
+
+export async function updateProfile(userId: string, input: ProfileInput): Promise<void> {
+  const supabase = getSupabase();
+  let { error } = await supabase.from('profiles').update(input).eq('id', userId);
+  if (error?.code === 'PGRST204' || error?.code === '42703') {
+    const { avatar_path: _ignored, ...rest } = input;
+    ({ error } = await supabase.from('profiles').update(rest).eq('id', userId));
+  }
+  if (error) throw dataError(error.message, error.code);
+}
+
+/** Sube la foto a avatars/<usuario>/… y devuelve la ruta para el perfil. */
+export async function uploadAvatar(userId: string, blob: Blob): Promise<string> {
+  const path = `${userId}/avatar-${Date.now()}.jpg`;
+  const { error } = await getSupabase().storage.from('avatars').upload(path, blob, {
+    contentType: 'image/jpeg',
+    upsert: false,
+  });
+  if (error) throw dataError(error.message);
+  return path;
+}
+
+/** El bucket es privado: se pide una liga firmada que dura una hora. */
+export async function avatarUrl(path: string | null | undefined): Promise<string | null> {
+  if (path === null || path === undefined || path === '') return null;
+  const { data, error } = await getSupabase().storage.from('avatars').createSignedUrl(path, 3600);
+  if (error) return null;
+  return data.signedUrl;
 }
 
 export async function fetchLoyaltyProgram(restaurantId: string): Promise<LoyaltyProgramRow | null> {

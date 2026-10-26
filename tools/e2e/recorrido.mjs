@@ -388,13 +388,32 @@ try {
   const [cuentaAna] = await db`select a.card_code from public.loyalty_accounts a join auth.users u on u.id = a.user_id
                                 where u.email = 'ana@example.test'`;
   if (!cuentaAna?.card_code) throw new Error('Ana no tiene tarjeta');
+  await paso(c, 'cliente-foto-y-telefono', async () => {
+    await c.getByText('Agrega tu foto y teléfono').first().click();
+    await c.getByTestId('editar-perfil').filter({ visible: true }).click();
+    const [chooser] = await Promise.all([
+      c.waitForEvent('filechooser'),
+      c.getByTestId('elegir-foto-perfil').filter({ visible: true }).click(),
+    ]);
+    await chooser.setFiles(join(here, '..', '..', 'apps', 'mobile', 'public', 'img', 'menu', 'anti-flu.jpg'));
+    await c.getByLabel('Apellido').filter({ visible: true }).fill('López');
+    await c.getByLabel('Teléfono').filter({ visible: true }).fill('(732) 555-0142');
+    await c.getByTestId('guardar-perfil').filter({ visible: true }).click();
+    await visible(c, 'Ana López');
+    await visible(c, '(732) 555-0142');
+    const [p] = await db`select p.avatar_path from public.profiles p join auth.users u on u.id = p.id where u.email = 'ana@example.test'`;
+    if (!p?.avatar_path) throw new Error('No se guardó la foto');
+  });
   await paso(t, 'tienda-abre-tarjeta', async () => {
     await t.goto(`${APP}admin/lealtad`);
     await visible(t, 'Tarjeta del cliente');
     await t.getByLabel('O escribe el código de la tarjeta').fill(`${cuentaAna.card_code.slice(0, 5)}-${cuentaAna.card_code.slice(5)}`);
     await t.getByTestId('abrir-tarjeta').click();
-    await visible(t, 'Ana');
+    await visible(t, 'Ana López');
+    await visible(t, 'Tel. ••• 0142');
     await visible(t, 'Primera visita');
+    // La foto del cliente, desde el bucket privado (liga firmada).
+    await t.getByRole('img', { name: 'Ana López' }).filter({ visible: true }).first().waitFor({ timeout: 10_000 });
   });
   await paso(t, 'tienda-suma-visita-y-avisa', async () => {
     await t.getByTestId('sumar-visita').click();
@@ -406,14 +425,14 @@ try {
     await t.getByTestId('entregar').click();
     await visible(t, '¿Entregar Shot gratis?');
     await t.getByTestId('confirmar-entrega').click();
-    await visible(t, 'Listo: Shot gratis para Ana');
+    await visible(t, 'Listo: Shot gratis para Ana López');
     const [a] = await db`select points_balance from public.loyalty_accounts where card_code = ${cuentaAna.card_code}`;
     if (Number(a.points_balance) !== 0) throw new Error(`El conteo no volvió a 0: ${a.points_balance}`);
   });
   await paso(t, 'tienda-historial-recompensas', async () => {
     await t.goto(`${APP}admin/lealtad`);
     await visible(t, 'Recompensas entregadas');
-    await visible(t, 'Shot gratis → Ana');
+    await visible(t, 'Shot gratis → Ana López');
     await visible(t, 'entregó cajero@vivajuice.test');
   });
   await paso(c, 'cliente-recompensa-recibida', async () => {

@@ -121,6 +121,8 @@ export interface ProfileRow {
   last_name: string | null;
   phone: string | null;
   marketing_opt_in: boolean;
+  // 0034: foto de perfil en el bucket privado `avatars`.
+  avatar_path?: string | null;
   default_store_id: string | null;
 }
 

@@ -127,7 +127,7 @@ export default function AdminStatsScreen(): ReactNode {
     return { stats: base.data as Stats, insights: missing ? null : (extra.data as Insights) };
   }, [range, restaurantId, store.timezone]);
 
-  const { data, error, loading, reload } = useAsync(load, [range, restaurantId]);
+  const { data, error, reload } = useAsync(load, [range, restaurantId]);
 
   if (!isOwner) {
     return (
@@ -153,13 +153,30 @@ export default function AdminStatsScreen(): ReactNode {
     </View>
   );
 
-  if (data === null) {
+  if (data === null && error !== null) {
     return (
       <AdminShell scroll={false}>
         {ranges}
-        <DataState loading={loading} error={error} empty={false} onRetry={reload} emptyTitle="">
+        <DataState loading={false} error={error} empty={false} onRetry={reload} emptyTitle="">
           {null}
         </DataState>
+      </AdminShell>
+    );
+  }
+
+  // Mientras carga: la misma forma que la pantalla final (resumen, cuatro
+  // números, gráfica), en gris. Así nada brinca cuando llegan los datos.
+  if (data === null) {
+    return (
+      <AdminShell>
+        {ranges}
+        <View style={[styles.summary, styles.skeletonSummary]} accessibilityLabel={adminStrings.loading} />
+        <View style={styles.kpis}>
+          {[0, 1, 2, 3].map((i) => (
+            <View key={i} style={[styles.kpi, styles.skeletonKpi]} />
+          ))}
+        </View>
+        <View style={[styles.card, styles.skeletonChart]} />
       </AdminShell>
     );
   }
@@ -177,7 +194,7 @@ export default function AdminStatsScreen(): ReactNode {
   return (
     <AdminShell>
       {ranges}
-      {insights === null ? <Notice tone="error" text={t.missingSql(MISSING_SQL_FILE)} /> : null}
+      {insights === null ? <Notice tone="info" text={t.missingSql(MISSING_SQL_FILE)} /> : null}
 
       <Summary stats={stats} insights={insights} topSold={topSold} salesChange={salesChange} styles={styles} colors={colors} />
 
@@ -694,6 +711,9 @@ function createStyles(colors: BrandColors) {
     rangeTextOn: { color: colors.onPrimary },
 
     summary: { backgroundColor: colors.primary, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.sm },
+    skeletonSummary: { minHeight: 196, opacity: 0.25 },
+    skeletonKpi: { minHeight: 132, backgroundColor: colors.border, borderColor: colors.border, opacity: 0.5 },
+    skeletonChart: { minHeight: 300, opacity: 0.6 },
     summaryTitle: {
       color: colors.onPrimary,
       fontSize: typography.caption.fontSize,
