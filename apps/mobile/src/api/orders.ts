@@ -66,6 +66,8 @@ export interface OrderRow {
   paid_confirmed_at?: string | null;
   // Migracion 0029: estado del cobro en linea (Stripe / PayPal).
   online_status?: string | null;
+  // Migracion 0030: recargo por la forma de pago.
+  surcharge_cents?: number | null;
 }
 
 export interface OrderWithItems extends OrderRow {

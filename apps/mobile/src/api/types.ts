@@ -66,6 +66,9 @@ export interface StoreRow {
   // Migracion 0029: Zelle.
   zelle_recipient?: string | null;
   zelle_name?: string | null;
+  // Migracion 0030: impuesto de la sucursal (fraccion) y recargo por forma de pago.
+  tax_rate?: number | string | null;
+  payment_surcharges?: Record<string, number> | null;
 }
 
 export interface StoreHoursRow {

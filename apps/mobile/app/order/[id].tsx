@@ -209,6 +209,26 @@ export default function OrderScreen(): ReactNode {
       </View>
 
       <View style={styles.totals}>
+        {order.tax_cents > 0 || (order.surcharge_cents ?? 0) > 0 ? (
+          <>
+            <View style={styles.breakdownRow}>
+              <Text style={styles.breakdownLabel}>{strings.order.subtotalLine}</Text>
+              <Text style={styles.breakdownValue}>{formatMoney(order.subtotal_cents)}</Text>
+            </View>
+            {order.tax_cents > 0 ? (
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>{strings.order.taxLine}</Text>
+                <Text style={styles.breakdownValue}>{formatMoney(order.tax_cents)}</Text>
+              </View>
+            ) : null}
+            {(order.surcharge_cents ?? 0) > 0 ? (
+              <View style={styles.breakdownRow}>
+                <Text style={styles.breakdownLabel}>{strings.order.surchargeLine}</Text>
+                <Text style={styles.breakdownValue}>{formatMoney(order.surcharge_cents ?? 0)}</Text>
+              </View>
+            ) : null}
+          </>
+        ) : null}
         <View style={styles.totalRow}>
           <Text style={styles.totalLabel}>{strings.order.subtotal}</Text>
           <Text style={styles.totalValue}>{formatMoney(displayAmountCents(totals))}</Text>
@@ -361,6 +381,9 @@ function createStyles(colors: BrandColors) {
       padding: spacing.lg,
       gap: spacing.xs,
     },
+    breakdownRow: { flexDirection: 'row', justifyContent: 'space-between', gap: spacing.md },
+    breakdownLabel: { flex: 1, color: colors.textMuted, fontSize: typography.label.fontSize },
+    breakdownValue: { color: colors.text, fontSize: typography.label.fontSize, fontWeight: '700' },
     totalRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     totalLabel: { color: colors.textMuted, fontSize: typography.body.fontSize },
     totalValue: { color: colors.text, fontSize: typography.title.fontSize, fontWeight: '800' },

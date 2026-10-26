@@ -22,6 +22,27 @@ Supabase → Edge Functions → Secrets.
 
 ---
 
+## Impuesto y recargos: una sola cantidad a pagar
+
+Panel → Negocio → **Impuestos y recargos**:
+
+- **Impuesto de la sucursal (%)**, ej. `6.625`. Se cobra en los productos
+  que tienen **Cobra impuesto** prendido (Menú → producto; viene prendido
+  en todos). Un producto puede llevar **tasa propia** o quedar exento.
+- **Recargo por forma de pago (%)**, ej. `3` en Tarjeta en línea. Se suma
+  sobre subtotal + impuesto. En blanco = sin recargo. Máximo 10%.
+
+El cliente ve el desglose (subtotal, impuesto, recargo) y paga **un solo
+total**, que también va en el botón ("Hacer pedido · $9.33"). Al elegir la
+forma de pago ve "+3%" junto a la que lleva recargo. El total lo calcula la
+base al crear el pedido (migración 0030); Stripe y PayPal cobran ese total.
+
+Mientras el impuesto esté en 0, no se cobra impuesto. Confirma con quien
+lleve la contabilidad de Viva la tasa y qué productos están exentos, y si
+aplica algún aviso legal por el recargo con tarjeta.
+
+---
+
 ## Zelle
 
 1. Panel → Negocio → Formas de pago → prende **Aceptar Zelle**.

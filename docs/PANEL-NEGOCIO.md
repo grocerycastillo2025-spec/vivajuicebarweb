@@ -51,8 +51,10 @@ queda al menos un dueño.
 - **Lealtad**: puntos por visita con el QR del local (fijo para imprimir o
   en pantalla, cambia cada minuto), horas mínimas entre visitas,
   recompensas y validación de canjes (código de 6 letras).
-- **Negocio**: sucursal, horario, pausar pedidos, marca y colores, equipo
-  y **formas de pago** (ver [PAGOS.md](PAGOS.md)).
+- **Negocio**: sucursal, horario, pausar pedidos, marca y colores, equipo,
+  **impuestos y recargos** y **formas de pago** (ver [PAGOS.md](PAGOS.md)).
+  En cada producto (Menú) se elige si cobra impuesto y, opcional, su tasa
+  propia.
 
 ## "Arma tu jugo / licuado / bowl"
 

@@ -35,6 +35,8 @@ export const adminStrings = {
   add: 'Agregar',
 
   orders: {
+    breakdown: (subtotal: string, tax: string, surcharge: string): string =>
+      `Subtotal ${subtotal} · impuesto ${tax} · recargo ${surcharge}`,
     columns: {
       new: 'Nuevos',
       preparing: 'En preparación',
@@ -125,6 +127,11 @@ export const adminStrings = {
     photoFailed: 'No se pudo subir la foto',
     available: 'Disponible para pedir',
     availableHint: 'Apágalo cuando se agote; vuelve a encenderlo cuando haya otra vez.',
+    taxable: 'Cobra impuesto',
+    taxableHint: 'Apágalo si este producto está exento. El porcentaje se pone en Negocio → Impuestos y recargos.',
+    taxRate: 'Tasa propia de impuesto en % (opcional)',
+    taxRatePlaceholder: 'Vacío = la de la sucursal',
+    taxRateInvalid: 'Escribe un porcentaje, por ejemplo 6.625',
     featured: 'Mostrar en Destacados',
     featuredHint: 'Aparece en la pantalla de inicio.',
     badge: 'Etiqueta',
@@ -310,6 +317,21 @@ export const adminStrings = {
     connected: 'Cuenta conectada',
     notConnected: 'Falta conectar la cuenta',
     noneOn: 'Prende al menos una forma de pago en mostrador o los clientes no podrán pedir.',
+  },
+
+  taxes: {
+    title: 'Impuestos y recargos',
+    hint:
+      'El cliente ve el desglose y paga UNA sola cantidad: subtotal + impuesto + recargo. La base lo calcula al ' +
+      'crear el pedido; Stripe y PayPal cobran ese total.',
+    rate: 'Impuesto de la sucursal (%)',
+    ratePlaceholder: 'Ej. 6.625',
+    rateHint: 'Se cobra en los productos marcados con "Cobra impuesto" (Menú → producto). 0 = no se cobra.',
+    surcharges: 'Recargo por forma de pago (%)',
+    surchargesHint:
+      'Se suma sobre subtotal + impuesto. Deja en blanco o 0 las formas sin recargo. Máximo 10%. ' +
+      'Al elegir la forma de pago, el cliente ve el porcentaje y cuánto es antes de pedir.',
+    invalid: 'Revisa los porcentajes: números como 6.625 o 3.',
   },
 
   business: {

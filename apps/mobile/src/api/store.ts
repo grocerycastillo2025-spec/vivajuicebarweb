@@ -202,3 +202,33 @@ export function formatAddress(store: StoreRow): string {
     .filter((part): part is string => typeof part === 'string' && part.trim() !== '')
     .join(', ');
 }
+
+export interface ItemTax {
+  readonly taxable: boolean;
+  readonly taxRateOverride: number | null;
+}
+
+/**
+ * Qué productos del carrito cobran impuesto (0030), para el estimado del
+ * checkout. Si la base aún no tiene la 0030, todos "cobran" pero la tasa de
+ * la sucursal tampoco existe: el estimado queda sin impuesto, igual que lo
+ * que calcularía la base.
+ */
+export async function fetchItemTax(storeId: string, cloverItemIds: readonly string[]): Promise<Map<string, ItemTax>> {
+  const out = new Map<string, ItemTax>();
+  if (cloverItemIds.length === 0) return out;
+  const { data, error } = await getSupabase()
+    .from('catalog_items')
+    .select('clover_item_id, taxable, tax_rate_override')
+    .eq('store_id', storeId)
+    .in('clover_item_id', [...new Set(cloverItemIds)])
+    .returns<{ clover_item_id: string; taxable: boolean; tax_rate_override: number | string | null }[]>();
+  if (error !== null) return out;
+  for (const row of data ?? []) {
+    out.set(row.clover_item_id, {
+      taxable: row.taxable !== false,
+      taxRateOverride: row.tax_rate_override === null ? null : Number(row.tax_rate_override),
+    });
+  }
+  return out;
+}

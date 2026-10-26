@@ -214,6 +214,11 @@ try {
     await d.getByText('modo PRUEBA').nth(1).waitFor({ timeout: 15_000 });
     await d.getByRole('switch', { name: /tarjeta en línea/i }).click();
     await d.getByRole('switch', { name: /PayPal/ }).click();
+    // Impuesto 6.625% y 3% de recargo con tarjeta en línea.
+    await d.getByLabel('Impuesto de la sucursal (%)').fill('6.625');
+    await d.getByLabel('Tarjeta en línea', { exact: true }).fill('3');
+    await d.getByTestId('guardar-impuestos').click();
+    await visible(d, 'Guardado');
     await d.getByTestId('guardar-pagos').click();
     await visible(d, 'Guardado');
     const [tienda] = await db`select payment_options from public.stores where id = ${STORE}`;
@@ -239,15 +244,31 @@ try {
     await boton(c, 'Hacer pedido').click();
   }
 
+  await paso(c, 'checkout-con-impuesto-y-recargo', async () => {
+    await c.goto(`${APP}menu`);
+    await texto(c, 'Jugo Verde').click();
+    await boton(c, 'Agregar ·').click();
+    await c.goto(`${APP}cart`);
+    await boton(c, 'Elegir hora para recoger').click();
+    // 8.50 + 6.625% = 9.06 ; con tarjeta en línea +3% = 9.33.
+    await c.getByRole('radio', { name: /Efectivo/ }).filter({ visible: true }).click();
+    await visible(c, 'Impuesto');
+    await visible(c, 'Hacer pedido · $9.06');
+    await c.getByRole('radio', { name: /Tarjeta en línea/ }).filter({ visible: true }).click();
+    await visible(c, 'Recargo por pagar con Tarjeta en línea (3%)');
+    await visible(c, 'Hacer pedido · $9.33');
+  });
   await paso(c, 'stripe-pagina-de-pago', async () => {
-    await pedirOtro('Tarjeta en línea');
+    await boton(c, 'Hacer pedido').click();
     await c.waitForURL(/fake-stripe/, { timeout: 20_000 });
-    await visible(c, '8.50 USD');
+    // Stripe cobra lo mismo que se enseñó: una sola cantidad.
+    await visible(c, '9.33 USD');
   });
   await paso(c, 'stripe-pagado', async () => {
     await c.locator('#pagar').click();
     await c.waitForURL(/pago=ok/, { timeout: 20_000 });
     await visible(c, 'Pago recibido');
+    await visible(c, '$9.33');
   });
   await paso(c, 'paypal-pagina', async () => {
     await pedirOtro('PayPal');
@@ -257,6 +278,7 @@ try {
     await c.locator('#aprobar').click();
     await c.waitForURL(/pago=ok/, { timeout: 20_000 });
     await visible(c, 'Pago recibido');
+    await visible(c, '$9.06'); // PayPal sin recargo: solo el impuesto
   });
   await paso(c, 'historial', async () => {
     await c.goto(`${APP}orders`);
@@ -280,7 +302,12 @@ try {
     await visible(w, 'Ábrela en tu navegador');
   });
 
-  const rows = await db`select pay_with, paid_confirmed_at is not null as pagado, online_status from public.orders order by created_at`;
+  const rows = await db`select pay_with, paid_confirmed_at is not null as pagado, online_status, total_cents, online_paid_cents
+                          from public.orders order by created_at`;
+  const stripe = rows.find((r) => r.pay_with === 'stripe');
+  if (Number(stripe.total_cents) !== 933 || Number(stripe.online_paid_cents) !== 933) {
+    throw new Error(`Stripe: total ${stripe.total_cents}, cobrado ${stripe.online_paid_cents} (se esperaba 933)`);
+  }
   console.log('Pedidos en la base:', rows.map((r) => `${r.pay_with}:${r.pagado ? 'pagado' : 'pendiente'}`).join(', '));
   if (rows.some((r) => !r.pagado)) throw new Error('Quedó un pedido sin pagar');
 } finally {

@@ -31,18 +31,19 @@ import {
   parseCreateOrderError,
   placeCounterOrder,
 } from '../src/api/orders';
-import { fetchPickupSetup, fetchStore } from '../src/api/store';
+import { fetchItemTax, fetchPickupSetup, fetchStore, type ItemTax } from '../src/api/store';
 import { AuthForm } from '../src/components/AuthForm';
 import { DataState } from '../src/components/DataState';
 import { Screen, useScreenInsets } from '../src/components/Screen';
 import { SurchargeNotice } from '../src/components/SurchargeNotice';
 import { Button } from '../src/components/ui';
 import type { BrandColors } from '../src/domain/branding';
-import { cartItemCount, cartSubtotalCents } from '../src/domain/cart';
+import { cartItemCount, cartSubtotalCents, lineTotalCents } from '../src/domain/cart';
 import { formatMoney } from '../src/domain/money';
 import { makeIdempotencyKey } from '../src/domain/order';
 import { connectedProviders } from '../src/api/online-payments';
 import type { StoreRow } from '../src/api/types';
+import { computeTotals, formatRate, surchargeRateFor } from '../src/domain/totals';
 import { customerMethods, isOnlineProvider, type CustomerMethod, type OnlineProvider } from '../src/domain/payment-options';
 import {
   buildPickupDays,
@@ -187,6 +188,18 @@ export default function CheckoutScreen(): ReactNode {
     };
   }, [selectedStoreId]);
   const paymentStore = freshStore ?? selectedStore;
+
+  // Qué productos del carrito cobran impuesto (0030), para el estimado.
+  const cartIds = cart.lines.map((line) => line.cloverItemId).join('|');
+  const [itemTax, setItemTax] = useState<ReadonlyMap<string, ItemTax>>(new Map());
+  useEffect(() => {
+    if (selectedStoreId === null || cartIds === '') return;
+    let alive = true;
+    void fetchItemTax(selectedStoreId, cartIds.split('|')).then((value) => alive && setItemTax(value));
+    return () => {
+      alive = false;
+    };
+  }, [selectedStoreId, cartIds]);
   const methods = useMemo(
     () =>
       customerMethods(
@@ -202,6 +215,27 @@ export default function CheckoutScreen(): ReactNode {
   );
   const [payWith, setPayWith] = useState<CustomerMethod | null>(null);
   const chosenPayWith = payWith !== null && methods.includes(payWith) ? payWith : (methods[0] ?? null);
+
+  // Una sola cantidad a pagar: subtotal + impuesto + recargo de la forma de
+  // pago elegida. Mismas reglas que la base (domain/totals.ts); lo que se
+  // cobra lo calcula la base al crear el pedido.
+  const totals = useMemo(
+    () =>
+      computeTotals({
+        lines: cart.lines.map((line) => {
+          const tax = itemTax.get(line.cloverItemId);
+          return {
+            lineTotalCents: lineTotalCents(line),
+            taxable: tax?.taxable ?? true,
+            taxRateOverride: tax?.taxRateOverride ?? null,
+          };
+        }),
+        storeTaxRate: paymentStore?.tax_rate ?? 0,
+        surchargeRate: surchargeRateFor(paymentStore?.payment_surcharges, chosenPayWith),
+      }),
+    [cart.lines, itemTax, paymentStore, chosenPayWith],
+  );
+  const surchargeRate = surchargeRateFor(paymentStore?.payment_surcharges, chosenPayWith);
 
   const place = useCallback(async () => {
     if (effectiveSlot === null || selectedStoreId === null || data?.config === undefined) return;
@@ -465,8 +499,10 @@ export default function CheckoutScreen(): ReactNode {
         <View style={styles.summary}>
           <Text style={styles.sectionTitle}>{strings.checkout.summary}</Text>
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>{strings.cart.itemCount(cartItemCount(cart))}</Text>
-            <Text style={styles.summaryValue}>{formatMoney(subtotal)}</Text>
+            <Text style={styles.summaryLabel}>
+              {strings.cart.itemCount(cartItemCount(cart))} · {strings.checkout.subtotalLine}
+            </Text>
+            <Text style={styles.breakdownValue}>{formatMoney(subtotal)}</Text>
           </View>
 
           {/*
@@ -482,8 +518,6 @@ export default function CheckoutScreen(): ReactNode {
           */}
           <SurchargeNotice disclosure={surcharge} />
 
-          {/* Solo subtotal: el total lo calcula la caja. */}
-          <Text style={styles.summaryNote}>{strings.checkout.taxNote}</Text>
 
           {selectedStore?.payments_mode === 'counter' ? (
             <View style={styles.payBlock}>
@@ -507,7 +541,14 @@ export default function CheckoutScreen(): ReactNode {
                       color={on ? colors.primary : colors.textMuted}
                     />
                     <View style={styles.counterNoteBody}>
-                      <Text style={styles.counterNoteTitle}>{strings.payments.methods[method]}</Text>
+                      <Text style={styles.counterNoteTitle}>
+                        {strings.payments.methods[method]}
+                        {surchargeRateFor(paymentStore?.payment_surcharges, method) > 0 ? (
+                          <Text style={styles.surchargeTag}>
+                            {`  ${strings.checkout.surchargeTag(formatRate(surchargeRateFor(paymentStore?.payment_surcharges, method)))}`}
+                          </Text>
+                        ) : null}
+                      </Text>
                       <Text style={styles.summaryNote}>{strings.payments.hints[method]}</Text>
                     </View>
                     <Ionicons
@@ -520,6 +561,36 @@ export default function CheckoutScreen(): ReactNode {
               })}
             </View>
           ) : null}
+
+          <View style={styles.breakdown} testID="total-a-pagar">
+            {totals.taxCents > 0 || totals.surchargeCents > 0 ? (
+              <>
+                <View style={styles.breakdownRow}>
+                  <Text style={styles.breakdownLabel}>{strings.checkout.subtotalLine}</Text>
+                  <Text style={styles.breakdownValue}>{formatMoney(totals.subtotalCents)}</Text>
+                </View>
+                {totals.taxCents > 0 ? (
+                  <View style={styles.breakdownRow}>
+                    <Text style={styles.breakdownLabel}>{strings.checkout.taxLine}</Text>
+                    <Text style={styles.breakdownValue}>{formatMoney(totals.taxCents)}</Text>
+                  </View>
+                ) : null}
+                {totals.surchargeCents > 0 && chosenPayWith !== null ? (
+                  <View style={styles.breakdownRow}>
+                    <Text style={styles.breakdownLabel}>
+                      {strings.checkout.surchargeLine(strings.payments.methods[chosenPayWith] ?? chosenPayWith, formatRate(surchargeRate))}
+                    </Text>
+                    <Text style={styles.breakdownValue}>{formatMoney(totals.surchargeCents)}</Text>
+                  </View>
+                ) : null}
+              </>
+            ) : null}
+            <View style={[styles.breakdownRow, styles.totalRow]}>
+              <Text style={styles.totalLabel}>{strings.checkout.totalToPay}</Text>
+              <Text style={styles.totalValue}>{formatMoney(totals.totalCents)}</Text>
+            </View>
+            <Text style={styles.summaryNote}>{strings.checkout.taxNote}</Text>
+          </View>
         </View>
 
         {failure !== null ? (
@@ -543,7 +614,7 @@ export default function CheckoutScreen(): ReactNode {
           <Text style={styles.footerSlot}>{strings.order.estimatedFor(effectiveSlot.label)}</Text>
         ) : null}
         <Button
-          label={placing ? strings.checkout.placing : strings.checkout.placeOrder}
+          label={placing ? strings.checkout.placing : strings.checkout.placeOrderTotal(formatMoney(totals.totalCents))}
           onPress={() => void place()}
           busy={placing}
           disabled={effectiveSlot === null}
@@ -646,6 +717,14 @@ function createStyles(colors: BrandColors) {
       marginTop: spacing.sm,
     },
     summaryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    breakdown: { gap: spacing.xs, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.md },
+    breakdownRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
+    breakdownLabel: { flex: 1, color: colors.textMuted, fontSize: typography.label.fontSize },
+    breakdownValue: { color: colors.text, fontSize: typography.label.fontSize, fontWeight: '700' },
+    totalRow: { marginTop: spacing.xs },
+    totalLabel: { color: colors.text, fontSize: typography.body.fontSize, fontWeight: '800' },
+    totalValue: { color: colors.text, fontSize: typography.title.fontSize, fontWeight: '800' },
+    surchargeTag: { color: colors.textMuted, fontSize: typography.caption.fontSize, fontWeight: '700' },
     summaryLabel: { color: colors.textMuted, fontSize: typography.body.fontSize },
     summaryValue: { color: colors.text, fontSize: typography.title.fontSize, fontWeight: '800' },
     summaryNote: { color: colors.textFaint, fontSize: typography.caption.fontSize, lineHeight: 18 },

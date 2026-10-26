@@ -8,10 +8,10 @@
  * las tiene, se repite sin ellas y se recuerda para esta sesión.
  */
 
-/** Migración 0029: datos de Zelle. */
-export const STORE_COLUMNS_0026 = ', zelle_recipient, zelle_name';
-/** Migraciones 0026 y 0029: pago confirmado y estado del cobro en línea. */
-export const ORDER_COLUMNS_0026 = ', paid_confirmed_at, online_status';
+/** Migraciones 0029 y 0030: Zelle, impuesto y recargos. */
+export const STORE_COLUMNS_0026 = ', zelle_recipient, zelle_name, tax_rate, payment_surcharges';
+/** Migraciones 0026, 0029 y 0030: pago confirmado, cobro en línea y recargo. */
+export const ORDER_COLUMNS_0026 = ', paid_confirmed_at, online_status, surcharge_cents';
 
 /**
  * Mensaje para el dueño cuando la base todavía no tiene las columnas: qué

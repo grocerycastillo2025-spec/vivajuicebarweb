@@ -169,15 +169,8 @@ do $$ begin
     raise exception 'El cajero escribió online_payment_id';
   end if;
 end $$;
--- El trigger, probado directo: alguien con sesión que sí pudiera actualizar.
-do $$ begin
-  perform set_config('request.jwt.claim.sub', 'eeeeeeee-0000-4000-8000-000000000002', true);
-  update public.orders set online_payment_id = 'pi_falso' where id = (select id from _p29);
-  raise exception 'SE ESPERABA order_online_column';
-exception when insufficient_privilege then
-  if sqlerrm <> 'order_online_column' then raise; end if;
-end $$;
-select set_config('request.jwt.claim.sub', '', true);
+-- El trigger se prueba directo en 0030 (con una política temporal).
+
 
 -- ---------------------------------------------------------------------
 -- Stripe y PayPal: prendidos Y conectados

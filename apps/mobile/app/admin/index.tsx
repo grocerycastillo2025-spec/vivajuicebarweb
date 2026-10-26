@@ -326,6 +326,16 @@ function OrderCard({
         <Text style={styles.lineNote}>{order.cancel_reason}</Text>
       ) : null}
 
+      {!compact && (order.tax_cents > 0 || (order.surcharge_cents ?? 0) > 0) ? (
+        <Text style={styles.lineNote}>
+          {t.orders.breakdown(
+            formatMoney(order.subtotal_cents, order.currency),
+            formatMoney(order.tax_cents, order.currency),
+            formatMoney(order.surcharge_cents ?? 0, order.currency),
+          )}
+        </Text>
+      ) : null}
+
       <View style={styles.orderFoot}>
         <Text style={styles.orderTotal}>
           {t.orders.total}{' '}

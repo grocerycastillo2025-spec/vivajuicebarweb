@@ -147,6 +147,9 @@ export interface AdminProduct {
   /** Traducción al español (0029). */
   readonly name_es: string;
   readonly description_es: string;
+  /** Impuesto (0030): si lo cobra y su tasa propia (null = la de la sucursal). */
+  readonly taxable: boolean;
+  readonly tax_rate_override: number | null;
   // De `app_item_overrides`
   readonly description: string | null;
   readonly image_url: string | null;
@@ -169,6 +172,8 @@ interface ItemRow {
   price_cents: Cents;
   available: boolean;
   i18n?: unknown;
+  taxable?: boolean;
+  tax_rate_override?: number | string | null;
 }
 
 interface OverrideRow {
@@ -199,6 +204,33 @@ function spanishI18n(fields: Record<string, string>): Record<string, Record<stri
 const isMissingColumn = (error: { code?: string } | null): boolean =>
   error?.code === '42703' || error?.code === 'PGRST204';
 
+/** El producto sin las columnas de 0029/0030, para una base que aún no las tiene. */
+function withoutNewColumns(item: Record<string, unknown>): Record<string, unknown> {
+  const { i18n: _i18n, taxable: _taxable, tax_rate_override: _rate, ...rest } = item;
+  return rest;
+}
+
+export interface TaxSettings {
+  /** Fracción: 0.06625 = 6.625%. */
+  readonly taxRate: number;
+  /** Fracción por forma de pago: {"stripe": 0.03}. Sin entrada = sin recargo. */
+  readonly surcharges: Record<string, number>;
+}
+
+/** Impuesto de la sucursal y recargo por forma de pago (0030). */
+export async function updateTaxSettings(storeId: string, settings: TaxSettings): Promise<void> {
+  const surcharges: Record<string, number> = {};
+  for (const [key, value] of Object.entries(settings.surcharges)) if (value > 0) surcharges[key] = value;
+  const { error } = await getSupabase()
+    .from('stores')
+    .update({ tax_rate: settings.taxRate, payment_surcharges: surcharges })
+    .eq('id', storeId);
+  if (isMissingColumn(error)) {
+    throw dataError(`Falta correr ${MISSING_SQL_FILE} en Supabase (SQL Editor → Run).`, error?.code);
+  }
+  fail(error);
+}
+
 export async function fetchAdminCatalog(storeId: string): Promise<AdminCatalog> {
   const supabase = getSupabase();
   const categoriesQuery = (withI18n: boolean) =>
@@ -210,18 +242,22 @@ export async function fetchAdminCatalog(storeId: string): Promise<AdminCatalog> 
       .order('sort_order')
       .order('name')
       .returns<(AdminCategory & { i18n?: unknown })[]>();
-  const itemsQuery = (withI18n: boolean) =>
+  // Columnas nuevas por nivel: 2 = traducción + impuesto (0029, 0030),
+  // 1 = solo traducción, 0 = ninguna.
+  const itemsQuery = (level: number) =>
     supabase
       .from('catalog_items')
       .select(
-        'id, clover_item_id, category_id, name, alternate_name, price_cents, available' + (withI18n ? ', i18n' : ''),
+        'id, clover_item_id, category_id, name, alternate_name, price_cents, available' +
+          (level >= 1 ? ', i18n' : '') +
+          (level >= 2 ? ', taxable, tax_rate_override' : ''),
       )
       .eq('store_id', storeId)
       .is('deleted_at', null)
       .returns<ItemRow[]>();
   const [firstCategories, firstItems, overrides] = await Promise.all([
     categoriesQuery(true),
-    itemsQuery(true),
+    itemsQuery(2),
     supabase
       .from('app_item_overrides')
       .select('clover_item_id, marketing_copy, image_url, featured, badge, sort_order')
@@ -230,7 +266,9 @@ export async function fetchAdminCatalog(storeId: string): Promise<AdminCatalog> 
   ]);
   // Base sin la 0029: se edita solo en inglés.
   const categories = isMissingColumn(firstCategories.error) ? await categoriesQuery(false) : firstCategories;
-  const items = isMissingColumn(firstItems.error) ? await itemsQuery(false) : firstItems;
+  let items = firstItems;
+  if (isMissingColumn(items.error)) items = await itemsQuery(1);
+  if (isMissingColumn(items.error)) items = await itemsQuery(0);
 
   fail(categories.error);
   fail(items.error);
@@ -248,6 +286,9 @@ export async function fetchAdminCatalog(storeId: string): Promise<AdminCatalog> 
         price_cents: item.price_cents,
         available: item.available,
         name_es: spanish(item.i18n, 'name'),
+        taxable: item.taxable !== false,
+        tax_rate_override:
+          item.tax_rate_override === null || item.tax_rate_override === undefined ? null : Number(item.tax_rate_override),
         description_es: spanish(item.i18n, 'description'),
         description: o?.marketing_copy ?? item.alternate_name,
         image_url: o?.image_url ?? null,
@@ -313,6 +354,8 @@ export interface ProductInput {
   readonly description: string;
   readonly name_es: string;
   readonly description_es: string;
+  readonly taxable: boolean;
+  readonly tax_rate_override: number | null;
   readonly image_url: string | null;
   readonly featured: boolean;
   readonly badge: string;
@@ -329,6 +372,8 @@ export async function saveProduct(storeId: string, input: ProductInput): Promise
     price_cents: input.price_cents,
     available: input.available,
     i18n: spanishI18n({ name: input.name_es, description: input.description_es }),
+    taxable: input.taxable,
+    tax_rate_override: input.tax_rate_override,
   };
 
   let cloverItemId = input.clover_item_id;
@@ -342,10 +387,7 @@ export async function saveProduct(storeId: string, input: ProductInput): Promise
         .select('id, clover_item_id')
         .single<{ id: string; clover_item_id: string }>();
     let { data, error } = await insert(item);
-    if (isMissingColumn(error)) {
-      const { i18n: _sinTraduccion, ...sinI18n } = item;
-      ({ data, error } = await insert(sinI18n));
-    }
+    if (isMissingColumn(error)) ({ data, error } = await insert(withoutNewColumns(item)));
     fail(error);
     id = data?.id;
     cloverItemId = data?.clover_item_id;
@@ -354,10 +396,7 @@ export async function saveProduct(storeId: string, input: ProductInput): Promise
     const update = (values: Record<string, unknown>) =>
       supabase.from('catalog_items').update(values).eq('id', productId);
     let { error } = await update(item);
-    if (isMissingColumn(error)) {
-      const { i18n: _sinTraduccion, ...sinI18n } = item;
-      ({ error } = await update(sinI18n));
-    }
+    if (isMissingColumn(error)) ({ error } = await update(withoutNewColumns(item)));
     fail(error);
   }
 

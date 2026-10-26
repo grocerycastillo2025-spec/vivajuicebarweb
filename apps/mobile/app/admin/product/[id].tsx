@@ -28,6 +28,7 @@ import { DataState } from '../../../src/components/DataState';
 import { Button } from '../../../src/components/ui';
 import { parsePriceInput, priceToInput } from '../../../src/domain/admin';
 import type { BrandColors } from '../../../src/domain/branding';
+import { formatRate, parseRateInput } from '../../../src/domain/totals';
 import { useAsync } from '../../../src/hooks/use-async';
 import { useColors } from '../../../src/state/branding-context';
 import { radius, spacing, type as typography } from '../../../src/theme';
@@ -77,6 +78,12 @@ function ProductForm({
   const [description, setDescription] = useState(existing?.description ?? '');
   const [nameEs, setNameEs] = useState(existing?.name_es ?? '');
   const [descriptionEs, setDescriptionEs] = useState(existing?.description_es ?? '');
+  const [taxable, setTaxable] = useState(existing?.taxable ?? true);
+  const [ownRate, setOwnRate] = useState(
+    existing?.tax_rate_override === null || existing?.tax_rate_override === undefined
+      ? ''
+      : formatRate(existing.tax_rate_override).replace('%', ''),
+  );
   const [imageUrl, setImageUrl] = useState<string | null>(existing?.image_url ?? null);
   const [available, setAvailable] = useState(existing?.available ?? true);
   const [featured, setFeatured] = useState(existing?.featured ?? false);
@@ -110,6 +117,8 @@ function ProductForm({
   const priceCents = parsePriceInput(price);
   const nameError = touched && name.trim() === '' ? t.product.nameRequired : null;
   const priceError = touched && priceCents === null ? t.product.priceInvalid : null;
+  const parsedOwnRate = ownRate.trim() === '' ? null : parseRateInput(ownRate, 0.25);
+  const ownRateError = ownRate.trim() !== '' && parsedOwnRate === null ? t.product.taxRateInvalid : null;
 
   const choosePhoto = async (): Promise<void> => {
     setFailure(null);
@@ -130,7 +139,7 @@ function ProductForm({
 
   const save = async (): Promise<void> => {
     setTouched(true);
-    if (name.trim() === '' || priceCents === null) return;
+    if (name.trim() === '' || priceCents === null || ownRateError !== null) return;
     setSaving(true);
     setFailure(null);
     try {
@@ -143,6 +152,8 @@ function ProductForm({
         description,
         name_es: nameEs,
         description_es: descriptionEs,
+        taxable,
+        tax_rate_override: ownRate.trim() === '' ? null : parsedOwnRate,
         image_url: imageUrl,
         featured,
         badge,
@@ -255,6 +266,17 @@ function ProductForm({
               value={available}
               onValueChange={setAvailable}
             />
+            <Toggle label={t.product.taxable} hint={t.product.taxableHint} value={taxable} onValueChange={setTaxable} />
+            {taxable ? (
+              <Field
+                label={t.product.taxRate}
+                value={ownRate}
+                onChangeText={setOwnRate}
+                placeholder={t.product.taxRatePlaceholder}
+                keyboardType="decimal-pad"
+                error={ownRateError}
+              />
+            ) : null}
             <Toggle
               label={t.product.featured}
               hint={t.product.featuredHint}

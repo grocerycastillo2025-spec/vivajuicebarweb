@@ -16,6 +16,7 @@ import {
   fetchAdminSettings,
   fetchConnectedProviders,
   updatePaymentOptions,
+  updateTaxSettings,
   addTeamMember,
   fetchTeam,
   removeTeamMember,
@@ -41,8 +42,10 @@ import {
   type DayHours,
 } from '../../src/domain/admin';
 import type { BrandColors } from '../../src/domain/branding';
+import { formatRate, parseRateInput } from '../../src/domain/totals';
 import {
   blocksSaving,
+  CUSTOMER_METHODS,
   formatZelleRecipient,
   normalizeZelleRecipient,
   ONLINE_PROVIDERS,
@@ -97,6 +100,7 @@ export default function AdminBusinessScreen(): ReactNode {
         </View>
         <View style={layoutStyles.column}>
           <TeamCard />
+          <TaxesCard store={store} />
           <PaymentsCard store={store} connected={data.connected} />
           {data.settings !== null ? <BrandCard settings={data.settings} restaurantId={restaurantId} /> : null}
         </View>
@@ -455,6 +459,78 @@ function createStyles(colors: BrandColors) {
       borderTopColor: colors.border,
     },
   });
+}
+
+/** 0.03 -> "3"; 0 o nada -> "". */
+function rateToInput(value: unknown): string {
+  const n = typeof value === 'string' ? Number(value) : value;
+  return typeof n === 'number' && Number.isFinite(n) && n > 0 ? formatRate(n).replace('%', '') : '';
+}
+
+function TaxesCard({ store }: { readonly store: StoreRow }): ReactNode {
+  const colors = useColors();
+  const styles = useMemo(() => ({ ...createAdminStyles(colors), ...createStyles(colors) }), [colors]);
+  const { reloadStore } = useAdmin();
+  const tx = adminStrings.taxes;
+  const [rate, setRate] = useState(rateToInput(store.tax_rate));
+  const [surcharges, setSurcharges] = useState<Record<string, string>>(() => {
+    const out: Record<string, string> = {};
+    for (const m of CUSTOMER_METHODS) out[m] = rateToInput(store.payment_surcharges?.[m]);
+    return out;
+  });
+  const [invalid, setInvalid] = useState(false);
+  const { saving, notice, run } = useSaver();
+
+  const save = (): void => {
+    const taxRate = parseRateInput(rate, 0.249);
+    const parsed: Record<string, number> = {};
+    let bad = taxRate === null;
+    for (const m of CUSTOMER_METHODS) {
+      const value = parseRateInput(surcharges[m] ?? '', 0.1);
+      if (value === null) bad = true;
+      else parsed[m] = value;
+    }
+    setInvalid(bad);
+    if (bad || taxRate === null) return;
+    void run(async () => {
+      await updateTaxSettings(store.id, { taxRate, surcharges: parsed });
+      reloadStore();
+    });
+  };
+
+  return (
+    <Card title={tx.title}>
+      <Text style={styles.hint}>{tx.hint}</Text>
+      <Field
+        label={tx.rate}
+        value={rate}
+        onChangeText={setRate}
+        placeholder={tx.ratePlaceholder}
+        keyboardType="decimal-pad"
+        hint={tx.rateHint}
+      />
+      <Text style={styles.label}>{tx.surcharges}</Text>
+      <Text style={styles.hint}>{tx.surchargesHint}</Text>
+      {CUSTOMER_METHODS.map((m) => (
+        <Field
+          key={m}
+          label={strings.payments.methods[m] ?? m}
+          value={surcharges[m] ?? ''}
+          onChangeText={(value) => setSurcharges((all) => ({ ...all, [m]: value }))}
+          placeholder="0"
+          keyboardType="decimal-pad"
+        />
+      ))}
+      {invalid ? <Notice tone="error" text={tx.invalid} /> : null}
+      {notice !== null ? <Notice tone={notice.tone} text={notice.text} /> : null}
+      <Button
+        label={saving ? adminStrings.saving : adminStrings.save}
+        busy={saving}
+        onPress={save}
+        testID="guardar-impuestos"
+      />
+    </Card>
+  );
 }
 
 interface ProviderState {
