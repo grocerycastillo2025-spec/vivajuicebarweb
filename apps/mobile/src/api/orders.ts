@@ -271,6 +271,23 @@ export async function fetchMyOrders(limit = 30): Promise<OrderWithItems[]> {
   return localizeOrders(data ?? []);
 }
 
+/** Lo mínimo para avisar cambios de estado: número y estado de los últimos pedidos. */
+export async function fetchMyOrderStatuses(): Promise<{ id: string; order_number: number; status: string }[]> {
+  const supabase = getSupabase();
+  const { data: auth } = await supabase.auth.getSession();
+  const userId = auth.session?.user.id;
+  if (userId === undefined) return [];
+  const { data, error } = await supabase
+    .from('orders')
+    .select('id, order_number, status')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(10)
+    .returns<{ id: string; order_number: number; status: string }[]>();
+  if (error) throw dataError(error.message, error.code);
+  return data ?? [];
+}
+
 export async function fetchOrder(orderId: string): Promise<OrderWithItems | null> {
   const { data, error } = await with0026((withNew) =>
     getSupabase()

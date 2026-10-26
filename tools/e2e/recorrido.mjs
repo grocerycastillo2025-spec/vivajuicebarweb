@@ -203,6 +203,21 @@ try {
   // -------------------------------------------------------------------
   console.log('Dueña, computadora');
   const d = await nuevaPagina({ locale: 'es-US', width: 1280, height: 860 });
+  // Contar sonidos y vibraciones (en la prueba no hay bocinas).
+  await d.addInitScript(() => {
+    window.__sonidos = 0;
+    window.__vibraciones = 0;
+    const Ctx = window.AudioContext;
+    const orig = Ctx.prototype.createOscillator;
+    Ctx.prototype.createOscillator = function (...args) {
+      window.__sonidos += 1;
+      return orig.apply(this, args);
+    };
+    navigator.vibrate = () => {
+      window.__vibraciones += 1;
+      return true;
+    };
+  });
   await paso(d, 'duena-entra', async () => {
     await d.goto(`${APP}profile`);
     await d.getByRole('button', { name: 'Cerrar' }).first().click({ timeout: 5000 }).catch(() => {});
@@ -223,10 +238,36 @@ try {
     await visible(d, 'Nuevos');
     await visible(d, 'Pago por confirmar');
     await visible(d, 'Arma tu jugo');
+    // Alarma: pedido esperando, sonido por activar.
+    await visible(d, '1 pedido esperando que lo atiendan');
+  });
+  await paso(d, 'panel-alarma-suena-y-se-repite', async () => {
+    // Si el navegador aún no deja sonar, sale el botón para activarlo.
+    if (await d.getByTestId('activar-sonido').count()) await d.getByTestId('activar-sonido').click();
+    await d.waitForFunction(() => window.__sonidos > 0 && window.__vibraciones > 0, null, { timeout: 10_000 });
+    const primero = await d.evaluate(() => window.__sonidos);
+    // Se repite cada 15 s mientras nadie lo atienda.
+    await d.waitForFunction((n) => window.__sonidos > n, primero, { timeout: 25_000 });
+    await d.getByTestId('abrir-alertas').click();
+    await visible(d, 'Alertas de pedidos');
+    await visible(d, 'Subir mi sonido');
+    await visible(d, 'Cada 15 s');
+    await d.screenshot({ path: join(here, 'capturas', `${String(n).padStart(2, '0')}b-alertas.png`) });
+    await d.getByRole('button', { name: 'Listo' }).last().click();
   });
   await paso(d, 'panel-pago-recibido', async () => {
     await boton(d, 'Pago recibido').click();
     await visible(d, 'Pagado');
+  });
+  await paso(d, 'panel-empieza-a-preparar-y-calla', async () => {
+    await boton(d, 'Empezar a preparar').click();
+    await d.getByTestId('pedidos-esperando').waitFor({ state: 'detached', timeout: 15_000 });
+    const antes = await d.evaluate(() => window.__sonidos);
+    // Mientras tanto, al cliente le llega el aviso en su app.
+    await c.getByTestId('aviso-pedido').getByText('ya se está preparando').waitFor({ timeout: 25_000 });
+    await c.screenshot({ path: join(here, 'capturas', `${String(n).padStart(2, '0')}b-cliente-avisado.png`) });
+    await d.waitForTimeout(17_000);
+    if ((await d.evaluate(() => window.__sonidos)) !== antes) throw new Error('Siguió sonando ya atendido');
   });
   await paso(d, 'panel-menu-bilingue', async () => {
     await d.goto(`${APP}admin/menu`);

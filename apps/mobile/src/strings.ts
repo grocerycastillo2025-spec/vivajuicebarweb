@@ -285,6 +285,13 @@ export const es = {
   },
 
   order: {
+    noticePreparing: (n: number): string => `Tu pedido #${n} ya se está preparando.`,
+    noticeReady: (n: number): string => `¡Tu pedido #${n} está listo! Pasa por él al mostrador.`,
+    noticeCanceled: (n: number): string => `Tu pedido #${n} fue cancelado.`,
+    noticeOpen: 'Ver pedido',
+    notifyMe: 'Avisarme en este teléfono cuando esté listo',
+    notifyOn: 'Listo: te avisamos con sonido y un aviso del teléfono mientras la app esté abierta.',
+    notifyBlocked: 'Los avisos están bloqueados en este navegador. Igual verás el cambio aquí.',
     title: 'Tu pedido',
     number: (n: number): string => `Pedido #${n}`,
     pickupCode: 'Código para recoger',

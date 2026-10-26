@@ -1,4 +1,6 @@
 import { Stack } from 'expo-router';
+
+import { OrderWatcher } from '../src/components/OrderWatcher';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState, type ReactNode } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -56,6 +58,7 @@ function RootStack(): ReactNode {
         <Stack.Screen name="pay/[id]" options={{ presentation: 'card' }} />
         <Stack.Screen name="order/[id]" options={{ presentation: 'card' }} />
       </Stack>
+      <OrderWatcher />
     </>
   );
 }

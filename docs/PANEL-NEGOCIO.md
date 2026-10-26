@@ -49,11 +49,24 @@ queda al menos un dueño.
 ## Las pestañas
 
 - **Pedidos**: Nuevos, En preparación y Listos para entregar. Se actualiza
-  cada 15 s y suena cuando entra uno (hay que haber tocado la página una
-  vez; los navegadores no dejan sonar sin eso). Cancelar pide motivo.
-  Los pedidos de Zelle, Stripe y PayPal muestran **Pago por confirmar** o
-  **Pago en línea pendiente** hasta que llega el pago; el cajero puede
-  tocar **Pago recibido** (Zelle siempre se confirma así).
+  cada 10 s. Cancelar pide motivo. Los pedidos de Zelle, Stripe y PayPal
+  muestran **Pago por confirmar** o **Pago en línea pendiente** hasta que
+  llega el pago; la tienda puede tocar **Pago recibido** (Zelle siempre se
+  confirma así).
+  - **Alarma**: al entrar un pedido suena, vibra fuerte (Android) y sale una
+    franja roja "1 pedido esperando que lo atiendan". Se **repite** (cada
+    15 s, 30 s o 1 min) hasta que alguien toca **Empezar a preparar**.
+    **Silenciar 2 min** si hace falta. Botón **Alertas** para elegir en ESE
+    dispositivo: sonido (Alarma, Timbre, Campana o **subir uno propio**,
+    hasta 1.5 MB), volumen, repetir, vibrar, avisos del sistema aunque la
+    pantalla esté en otra app (pide permiso) y **mantener la pantalla
+    encendida** (para la tablet del mostrador).
+  - El navegador no deja sonar hasta que se toca la pantalla una vez: si
+    hace falta sale "Toca aquí para activar el sonido".
+  - El **cliente** recibe el aviso en su app cuando su pedido pasa a "en
+    preparación", "listo" o "cancelado": franja arriba, sonido, vibración y
+    aviso del teléfono si dio permiso ("Avisarme en este teléfono"). Con la
+    app cerrada todavía no hay aviso (eso es push; ver pendientes).
 - **Tienda** (dueño y Tienda): el día a día del mostrador. Arriba, un
   cuadro grande verde **Recibiendo pedidos** / rojo **Pedidos en pausa**
   con su botón (pausar pide confirmación). Abajo, todos los productos y
@@ -122,4 +135,4 @@ cargan desde el seed; crear grupos nuevos desde el panel todavía no está.
 
 - Editar grupos de opciones (extras) desde el panel.
 - Promociones y descuentos.
-- Notificaciones push en la web: el cliente sigue su pedido en Pedidos.
+- Notificaciones push con la app cerrada (Web Push): hoy los avisos llegan con la app abierta o en segundo plano.

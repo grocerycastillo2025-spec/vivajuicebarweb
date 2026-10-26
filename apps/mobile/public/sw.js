@@ -74,3 +74,21 @@ self.addEventListener('fetch', (event) => {
     ),
   );
 });
+
+// Tocar un aviso (pedido nuevo en el panel, "tu pedido está listo" para el
+// cliente) abre esa pantalla, o la trae al frente si ya estaba abierta.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const target = (event.notification.data && event.notification.data.url) || SCOPE;
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      for (const client of list) {
+        if (client.url.startsWith(self.location.origin) && 'focus' in client) {
+          if ('navigate' in client && client.url !== target) client.navigate(target).catch(() => {});
+          return client.focus();
+        }
+      }
+      return self.clients.openWindow(target);
+    }),
+  );
+});

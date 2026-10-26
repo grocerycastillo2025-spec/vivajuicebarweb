@@ -11,9 +11,8 @@
  */
 
 import { Ionicons } from '@expo/vector-icons';
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import {
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -26,12 +25,13 @@ import { fetchStoreOrders, setOrderPaid, setOrderStatus } from '../../src/api/ad
 import type { OrderWithItems } from '../../src/api/orders';
 import { useAdmin } from '../../src/admin/admin-context';
 import { adminStrings as t } from '../../src/admin/strings';
+import { AlarmPanel } from '../../src/admin/AlarmPanel';
+import { useAlarmSettings, useOrderAlarm } from '../../src/admin/order-alarm';
 import { AdminShell, Notice, createAdminStyles } from '../../src/admin/ui';
 import { DataState } from '../../src/components/DataState';
 import { Button } from '../../src/components/ui';
 import {
   canCancel,
-  newArrivals,
   orderActions,
   orderColumn,
   type OrderColumn,
@@ -49,33 +49,6 @@ import { radius, spacing, type as typography } from '../../src/theme';
 
 const LIVE_COLUMNS: readonly OrderColumn[] = ['new', 'preparing', 'ready'];
 
-/** Un "ding" corto con WebAudio. Sin archivos de audio que versionar. */
-function chime(): void {
-  if (Platform.OS !== 'web' || typeof window === 'undefined') return;
-  try {
-    const AudioCtx =
-      window.AudioContext ??
-      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (AudioCtx === undefined) return;
-    const ctx = new AudioCtx();
-    [880, 1320].forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.frequency.value = freq;
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      const start = ctx.currentTime + i * 0.18;
-      gain.gain.setValueAtTime(0.0001, start);
-      gain.gain.exponentialRampToValueAtTime(0.3, start + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.35);
-      osc.start(start);
-      osc.stop(start + 0.4);
-    });
-  } catch {
-    // Sin audio no pasa nada: el pedido igual aparece en pantalla.
-  }
-}
-
 export default function AdminOrdersScreen(): ReactNode {
   const colors = useColors();
   const admin = useAdminStyles(colors);
@@ -83,10 +56,10 @@ export default function AdminOrdersScreen(): ReactNode {
   const { width } = useWindowDimensions();
   const sideBySide = width >= 900;
 
-  const [banner, setBanner] = useState<string | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
-  const seen = useRef<Set<string> | null>(null);
+  const [settings, setSettings] = useAlarmSettings();
+  const [alarmOpen, setAlarmOpen] = useState(false);
 
   const load = useCallback(async () => {
     const orders = await fetchStoreOrders(store.id, dayKey(new Date(), store.timezone));
@@ -95,25 +68,16 @@ export default function AdminOrdersScreen(): ReactNode {
   }, [store.id, store.timezone]);
 
   const { data, error, loading, refresh, reload } = useAsync(load, [store.id]);
-  useInterval(refresh, 15_000);
-
-  // Aviso de pedidos nuevos (no en la primera carga).
-  useEffect(() => {
-    if (data === null) return;
-    const arrived = newArrivals(seen.current, data);
-    seen.current = new Set(data.map((order) => order.id));
-    if (arrived.length > 0) {
-      setBanner(t.orders.newArrived(arrived.length));
-      chime();
-    }
-  }, [data]);
+  // Cada 10 s, también con la pantalla en otra pestaña (el navegador lo
+  // espacia más en segundo plano, pero sigue llegando).
+  useInterval(refresh, 10_000, true, true);
+  const alarm = useOrderAlarm(data, settings);
 
   const move = useCallback(
     async (order: OrderWithItems, to: OrderStatus, reason: string | null = null) => {
       setFailure(null);
       try {
         await setOrderStatus(order.id, to, reason);
-        setBanner(null);
         refresh();
       } catch (cause) {
         setFailure(`${t.orders.failed}: ${cause instanceof Error ? cause.message : String(cause)}`);
@@ -164,15 +128,47 @@ export default function AdminOrdersScreen(): ReactNode {
 
   return (
     <AdminShell>
-      {banner !== null ? (
-        <Pressable onPress={() => setBanner(null)} style={admin.banner}>
-          <Ionicons name="notifications" size={20} color={colors.onAccent} />
-          <Text style={admin.bannerText}>{banner}</Text>
+      {alarm.locked ? (
+        <Pressable accessibilityRole="button" onPress={alarm.unlock} style={admin.unlock} testID="activar-sonido">
+          <Ionicons name="volume-high" size={28} color={colors.onPrimary} />
+          <View style={admin.grow}>
+            <Text style={admin.unlockTitle}>{t.alarm.tapToEnable}</Text>
+            <Text style={admin.unlockHint}>{t.alarm.tapToEnableHint}</Text>
+          </View>
         </Pressable>
+      ) : null}
+      {alarm.waiting > 0 ? (
+        <View style={admin.alarmBanner} accessibilityRole="alert" testID="pedidos-esperando">
+          <Ionicons name="notifications" size={28} color="#FFFFFF" />
+          <View style={admin.grow}>
+            <Text style={admin.alarmTitle}>{t.alarm.waiting(alarm.waiting)}</Text>
+            <Text style={admin.alarmHint}>
+              {alarm.snoozedUntil !== null && alarm.snoozedUntil > Date.now()
+                ? t.alarm.snoozed(formatSlotLabel(new Date(alarm.snoozedUntil).getHours() * 60 + new Date(alarm.snoozedUntil).getMinutes()))
+                : settings.repeatSeconds > 0
+                  ? t.alarm.repeatsEvery(settings.repeatSeconds)
+                  : t.alarm.noRepeat}
+            </Text>
+          </View>
+          {alarm.snoozedUntil !== null && alarm.snoozedUntil > Date.now() ? (
+            <Pressable accessibilityRole="button" onPress={() => alarm.snooze(0)} style={admin.snooze}>
+              <Text style={admin.snoozeText}>{t.alarm.unsnooze}</Text>
+            </Pressable>
+          ) : (
+            <Pressable accessibilityRole="button" onPress={() => alarm.snooze(2)} style={admin.snooze} testID="silenciar">
+              <Ionicons name="volume-mute" size={18} color="#FFFFFF" />
+              <Text style={admin.snoozeText}>{t.alarm.snooze}</Text>
+            </Pressable>
+          )}
+        </View>
       ) : null}
       {failure !== null ? <Notice tone="error" text={failure} /> : null}
 
       <View style={admin.toolbar}>
+        <Pressable accessibilityRole="button" onPress={() => setAlarmOpen(true)} style={admin.alertsButton} testID="abrir-alertas">
+          <Ionicons name="notifications-outline" size={18} color={colors.primary} />
+          <Text style={admin.alertsButtonText}>{t.alarm.button}</Text>
+        </Pressable>
         <Text style={admin.updated}>{t.orders.lastUpdate(clock)}</Text>
         <Pressable accessibilityRole="button" onPress={refresh} style={admin.refresh} hitSlop={8}>
           <Ionicons name="refresh" size={18} color={colors.primary} />
@@ -223,6 +219,7 @@ export default function AdminOrdersScreen(): ReactNode {
           ))}
         </View>
       ) : null}
+      <AlarmPanel visible={alarmOpen} settings={settings} onChange={setSettings} onClose={() => setAlarmOpen(false)} />
     </AdminShell>
   );
 }
@@ -442,15 +439,51 @@ function useAdminStyles(colors: BrandColors) {
 
 function createStyles(colors: BrandColors) {
   return StyleSheet.create({
-    banner: {
+    grow: { flex: 1, minWidth: 0 },
+    unlock: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: spacing.sm,
-      backgroundColor: colors.accent,
-      padding: spacing.md,
-      borderRadius: radius.md,
+      gap: spacing.md,
+      backgroundColor: colors.primary,
+      padding: spacing.lg,
+      borderRadius: radius.lg,
     },
-    bannerText: { color: colors.onAccent, fontWeight: '800', fontSize: typography.body.fontSize },
+    unlockTitle: { color: colors.onPrimary, fontWeight: '800', fontSize: typography.section.fontSize },
+    unlockHint: { color: colors.onPrimary, opacity: 0.9, fontSize: typography.label.fontSize },
+    alarmBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: spacing.md,
+      backgroundColor: colors.danger,
+      padding: spacing.lg,
+      borderRadius: radius.lg,
+    },
+    alarmTitle: { color: '#FFFFFF', fontWeight: '800', fontSize: typography.section.fontSize },
+    alarmHint: { color: '#FFFFFF', opacity: 0.92, fontSize: typography.label.fontSize },
+    snooze: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.7)',
+      borderRadius: radius.pill,
+      paddingHorizontal: spacing.md,
+      paddingVertical: spacing.sm,
+    },
+    snoozeText: { color: '#FFFFFF', fontWeight: '800', fontSize: typography.label.fontSize },
+    alertsButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginRight: 'auto',
+      borderWidth: 1,
+      borderColor: colors.primary,
+      borderRadius: radius.pill,
+      paddingHorizontal: spacing.md,
+      paddingVertical: 6,
+    },
+    alertsButtonText: { color: colors.primary, fontWeight: '800', fontSize: typography.label.fontSize },
     toolbar: {
       flexDirection: 'row',
       alignItems: 'center',

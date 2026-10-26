@@ -9,16 +9,16 @@
 import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 
-export function useInterval(tick: () => void, ms: number, enabled = true): void {
+export function useInterval(tick: () => void, ms: number, enabled = true, whileHidden = false): void {
   const tickRef = useRef(tick);
   tickRef.current = tick;
 
   useEffect(() => {
     if (!enabled) return undefined;
     const id = setInterval(() => {
-      if (Platform.OS === 'web' && typeof document !== 'undefined' && document.hidden) return;
+      if (!whileHidden && Platform.OS === 'web' && typeof document !== 'undefined' && document.hidden) return;
       tickRef.current();
     }, ms);
     return () => clearInterval(id);
-  }, [enabled, ms]);
+  }, [enabled, ms, whileHidden]);
 }

@@ -13,7 +13,7 @@
  */
 
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useCallback, useMemo, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, type ReactNode } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { fetchOrder, type OrderWithItems } from '../../src/api/orders';
@@ -35,6 +35,8 @@ import {
 import { formatSlotLabel, partsInZone } from '../../src/domain/pickup';
 import { useAsync } from '../../src/hooks/use-async';
 import { useInterval } from '../../src/hooks/use-interval';
+import { NotifyMeButton } from '../../src/components/NotifyMeButton';
+import { onOrderChange } from '../../src/components/OrderWatcher';
 import { useColors } from '../../src/state/branding-context';
 import { useStores } from '../../src/state/store-context';
 import { strings } from '../../src/strings';
@@ -62,6 +64,9 @@ export default function OrderScreen(): ReactNode {
 
   // Mientras el pedido siga en curso, se revisa solo cada 20 s: el
   // negocio lo mueve desde su panel y el cliente tiene que verlo.
+  useEffect(() => onOrderChange((changed) => {
+    if (changed === id) refresh();
+  }), [id, refresh]);
   const status = data?.order?.status;
   useInterval(
     refresh,
@@ -149,6 +154,8 @@ export default function OrderScreen(): ReactNode {
             : strings.order.estimatedFor(pickupLabel)}
         </Text>
       </View>
+
+      {order.status === 'confirmed' || order.status === 'preparing' ? <NotifyMeButton /> : null}
 
       {isPayable(order.status) ? (
         <View style={styles.payCard}>

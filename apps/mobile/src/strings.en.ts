@@ -261,6 +261,13 @@ export const en: Strings = {
   },
 
   order: {
+    noticePreparing: (n: number): string => `Your order #${n} is being prepared.`,
+    noticeReady: (n: number): string => `Your order #${n} is ready! Pick it up at the counter.`,
+    noticeCanceled: (n: number): string => `Your order #${n} was canceled.`,
+    noticeOpen: 'View order',
+    notifyMe: 'Alert me on this phone when it’s ready',
+    notifyOn: 'Done: we’ll alert you with a sound and a phone notification while the app is open.',
+    notifyBlocked: 'Alerts are blocked in this browser. You’ll still see the change here.',
     title: 'Your order',
     number: (n: number): string => `Order #${n}`,
     pickupCode: 'Pickup code',
