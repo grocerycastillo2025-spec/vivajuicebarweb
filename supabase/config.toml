@@ -1,0 +1,25 @@
+# =====================================================================
+# Configuracion del proyecto de Supabase de VIVA Juice and Coffee.
+#
+# Las Edge Functions de cobro llevan `verify_jwt = false` a proposito:
+#  - las que llama el cliente (crear el cobro) identifican al usuario
+#    cambiando su token por un usuario contra /auth/v1/user. La clave
+#    anonima ES un JWT valido del proyecto: con verify_jwt = true pasaria
+#    cualquiera, sin ser nadie. Ver supabase/functions/_shared/auth.ts.
+#  - los webhooks los llama el proveedor (Stripe/PayPal), sin sesion; no
+#    se fian del aviso: verifican el pago contra la API del proveedor.
+# =====================================================================
+
+project_id = "vivajuicebarweb"
+
+[functions.stripe-pago]
+verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+[functions.paypal-pago]
+verify_jwt = false
+
+[functions.paypal-webhook]
+verify_jwt = false

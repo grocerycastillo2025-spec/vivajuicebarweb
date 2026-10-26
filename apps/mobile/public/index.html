@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="%LANG_ISO_CODE%">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>%WEB_TITLE%</title>
+
+    <!--
+      App web / PWA de VIVA Juice and Coffee (Freehold, NJ).
+      `__BASE__` lo sustituye scripts/web-postbuild.mjs por la ruta donde se
+      sirve la app ("/" con dominio propio, "/<repo>/" en GitHub Pages).
+    -->
+    <link rel="manifest" href="__BASE__manifest.webmanifest" />
+    <link rel="icon" type="image/png" href="__BASE__favicon.png?v=3" />
+    <link rel="apple-touch-icon" href="__BASE__icons/apple-touch-icon.png?v=3" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="VIVA" />
+    <meta name="theme-color" content="#0E4A2B" />
+
+    <!-- Reset recomendado por react-native-web. -->
+    <style id="expo-reset">
+      html,
+      body {
+        height: 100%;
+        background-color: #f5f0e6;
+      }
+      body {
+        overflow: hidden;
+        margin: 0;
+      }
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+      /*
+        En pantallas anchas la app se ve como en el telefono: una columna
+        centrada sobre el verde de la marca. El ancho tiene que coincidir
+        con WEB_MAX_WIDTH de src/hooks/use-content-width.ts.
+      */
+      @media (min-width: 600px) {
+        body {
+          background-color: #0e4a2b;
+        }
+        #root {
+          max-width: 520px;
+          margin: 0 auto;
+          background-color: #f5f0e6;
+          box-shadow: 0 0 40px rgba(0, 0, 0, 0.25);
+        }
+        /* El Panel del negocio (/admin) se trabaja en computadora: mas ancho. */
+        body.admin-wide #root {
+          max-width: 1180px;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <noscript>VIVA Juice and Coffee needs JavaScript to work. / Necesita JavaScript para funcionar.</noscript>
+    <div id="root"></div>
+    <script>
+      // Aviso de instalación (Chrome/Edge/Samsung). Llega una sola vez y
+      // a veces antes de que cargue la app, así que se guarda aquí y la
+      // app lo usa cuando la persona toca "Instalar app".
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        window.__vivaInstallPrompt = e;
+        window.dispatchEvent(new Event('viva-install-ready'));
+      });
+      window.addEventListener('appinstalled', function () {
+        window.__vivaInstallPrompt = null;
+        window.__vivaInstalled = true;
+        window.dispatchEvent(new Event('viva-install-ready'));
+      });
+    </script>
+    <script>
+      // Service worker: hace la app instalable y abre al instante la
+      // segunda vez. Si falla, la app funciona igual.
+      if ('serviceWorker' in navigator && location.protocol === 'https:') {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('__BASE__sw.js', { scope: '__BASE__' }).catch(function () {});
+        });
+      }
+    </script>
+  </body>
+</html>

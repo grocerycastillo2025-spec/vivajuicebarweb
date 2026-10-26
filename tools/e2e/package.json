@@ -1,0 +1,14 @@
+{
+  "name": "@viva/e2e",
+  "private": true,
+  "type": "module",
+  "description": "Prueba de punta a punta en navegador: base real + PostgREST + Auth y proveedores de pago falsos.",
+  "scripts": {
+    "e2e": "bash ./correr.sh"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "playwright": "1.63.0",
+    "postgres": "3.4.5"
+  }
+}

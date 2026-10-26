@@ -1,0 +1,16 @@
+{
+  "name": "@juicebar/edge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "node --test --experimental-strip-types \"**/__tests__/*.test.ts\"",
+    "lint": "eslint ."
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "postgres": "3.4.5",
+    "typescript": "^5.6.0"
+  }
+}

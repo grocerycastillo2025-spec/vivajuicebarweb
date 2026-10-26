@@ -1,0 +1,32 @@
+{
+  "name": "VIVA Juice and Coffee",
+  "short_name": "VIVA",
+  "description": "Order fresh juices, smoothies, bowls and coffee for pickup in Freehold, NJ.",
+  "lang": "en-US",
+  "start_url": "__BASE__",
+  "scope": "__BASE__",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F5F0E6",
+  "theme_color": "#0E4A2B",
+  "icons": [
+    {
+      "src": "__BASE__icons/icon-192.png?v=3",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "__BASE__icons/icon-512.png?v=3",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "__BASE__icons/maskable-512.png?v=3",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

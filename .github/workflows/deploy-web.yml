@@ -1,0 +1,136 @@
+name: Publicar app web (GitHub Pages)
+
+# Cada push a main publica la app web. Tambien se puede lanzar a mano
+# desde Actions -> "Publicar app web" -> Run workflow.
+#
+# Requisitos (una sola vez):
+#  1. Settings -> Pages -> Source: "GitHub Actions".
+#  2. La URL y la clave publica de Supabase estan en apps/mobile/app.json
+#     (extra.supabaseUrl / extra.supabaseKey). Opcionalmente se pueden
+#     sobrescribir con los secretos EXPO_PUBLIC_SUPABASE_URL y
+#     EXPO_PUBLIC_SUPABASE_ANON_KEY.
+#  3. Solo con dominio propio (p. ej. app.vivajuicecoffee.com): crear la
+#     VARIABLE de repositorio WEB_BASE_URL con valor "/". Sin ella se
+#     asume la URL de Pages: https://<cuenta>.github.io/<repo>/
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Compilar la app web
+    runs-on: ubuntu-latest
+    outputs:
+      listo: ${{ steps.supabase.outputs.listo }}
+    steps:
+      - uses: actions/checkout@v7
+
+      # La URL y la clave PUBLICA de Supabase viven en apps/mobile/app.json
+      # (extra.supabaseUrl / extra.supabaseKey): van dentro de la app de
+      # todos modos. Si existen los secretos EXPO_PUBLIC_*, mandan ellos.
+      - name: Configuracion de Supabase
+        id: supabase
+        env:
+          SUPABASE_URL: ${{ secrets.EXPO_PUBLIC_SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.EXPO_PUBLIC_SUPABASE_ANON_KEY }}
+        run: |
+          [ -z "$SUPABASE_URL" ] && SUPABASE_URL=$(jq -r '.expo.extra.supabaseUrl // empty' apps/mobile/app.json)
+          [ -z "$SUPABASE_KEY" ] && SUPABASE_KEY=$(jq -r '.expo.extra.supabaseKey // empty' apps/mobile/app.json)
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_KEY" ]; then
+            # Sin Supabase no se publica nada (la version anterior, si la hay,
+            # sigue en linea). Solo se avisa: no es un error del codigo.
+            echo "::warning::Falta la URL o la clave publica de Supabase (apps/mobile/app.json extra.supabaseUrl / extra.supabaseKey). No se publico."
+            echo "listo=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "listo=true" >> "$GITHUB_OUTPUT"
+          # Todo lo que entra en la app web lo puede leer cualquiera que
+          # abra la pagina. Una clave secreta aqui seria un incidente.
+          case "$SUPABASE_KEY" in
+            sb_secret_*)
+              echo "::error::La clave de Supabase es SECRETA. Usa la publicable."
+              exit 1
+              ;;
+          esac
+          payload=$(printf '%s' "$SUPABASE_KEY" | cut -d. -f2 | tr '_-' '/+' | base64 -d 2>/dev/null || true)
+          if printf '%s' "$payload" | grep -q '"role":"service_role"'; then
+            echo "::error::La clave de Supabase es service_role. Usa la anon / publicable."
+            exit 1
+          fi
+          echo "EXPO_PUBLIC_SUPABASE_URL=$SUPABASE_URL" >> "$GITHUB_ENV"
+          echo "EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=$SUPABASE_KEY" >> "$GITHUB_ENV"
+          echo "Supabase: $SUPABASE_URL"
+
+      - uses: pnpm/action-setup@v6
+        if: steps.supabase.outputs.listo == 'true'
+
+      - uses: actions/setup-node@v7
+        if: steps.supabase.outputs.listo == 'true'
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+        if: steps.supabase.outputs.listo == 'true'
+
+      - name: Lint, typecheck y tests
+        if: steps.supabase.outputs.listo == 'true'
+        run: |
+          pnpm lint
+          pnpm typecheck
+          pnpm test
+
+      - name: Ruta base
+        if: steps.supabase.outputs.listo == 'true'
+        id: base
+        env:
+          WEB_BASE_URL: ${{ vars.WEB_BASE_URL }}
+          REPO: ${{ github.event.repository.name }}
+        run: |
+          # Con dominio propio la app vive en la raiz ("/" -> ""); en
+          # GitHub Pages sin dominio, bajo /<repo>.
+          if [ -n "$WEB_BASE_URL" ]; then
+            base="${WEB_BASE_URL%/}"
+          else
+            base="/$REPO"
+          fi
+          echo "value=$base" >> "$GITHUB_OUTPUT"
+          echo "Ruta base: '${base:-/}'"
+
+      - name: Exportar la app web
+        if: steps.supabase.outputs.listo == 'true'
+        working-directory: apps/mobile
+        env:
+          CI: '1'
+          EXPO_WEB_BASE_URL: ${{ steps.base.outputs.value }}
+          EXPO_PUBLIC_RESTAURANT_ID: ${{ secrets.EXPO_PUBLIC_RESTAURANT_ID }}
+          EXPO_PUBLIC_APP_ENV: production
+        run: pnpm build:web
+
+      - uses: actions/upload-pages-artifact@v4
+        if: steps.supabase.outputs.listo == 'true'
+        with:
+          path: apps/mobile/dist
+
+  deploy:
+    name: Publicar
+    needs: build
+    if: needs.build.outputs.listo == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

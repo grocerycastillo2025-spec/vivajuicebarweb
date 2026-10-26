@@ -1,0 +1,83 @@
+name: Funciones de pago (Supabase)
+
+# Publica en Supabase las Edge Functions del cobro en línea:
+#   stripe-pago      crea el cobro de Stripe con el total exacto del pedido
+#   stripe-webhook   recibe el aviso de Stripe y marca el pedido pagado
+#   paypal-pago      crea y cobra la orden de PayPal
+#   paypal-webhook   recibe el aviso de PayPal
+#
+# Se lanza a mano (Actions -> "Funciones de pago" -> Run workflow) y cada
+# vez que cambian esas funciones en main.
+#
+# Secreto necesario en GitHub (Settings -> Secrets and variables -> Actions):
+#   SUPABASE_ACCESS_TOKEN   Supabase -> Account -> Access Tokens -> Generate
+#                           (solo permiso de Edge Functions, si lo da a elegir)
+#
+# Las llaves de Stripe y PayPal NO van aquí: van en Supabase -> Edge
+# Functions -> Secrets (STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET,
+# PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET). Ver docs/PAGOS.md.
+#
+# El proyecto sale de apps/mobile/app.json (extra.supabaseUrl), el mismo que
+# usa la app: no hay que escribirlo en dos lugares.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/stripe-pago/**'
+      - 'supabase/functions/stripe-webhook/**'
+      - 'supabase/functions/paypal-pago/**'
+      - 'supabase/functions/paypal-webhook/**'
+      - 'supabase/functions/_shared/**'
+      - '.github/workflows/deploy-functions.yml'
+
+concurrency:
+  group: supabase-functions
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Comprobar el secreto y el proyecto
+        id: secreto
+        env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          url=$(jq -r '.expo.extra.supabaseUrl // empty' apps/mobile/app.json)
+          ref=$(printf '%s' "$url" | sed -nE 's#^https://([a-z0-9]{20})\.supabase\.co/?$#\1#p')
+          if [ -z "$ref" ]; then
+            echo "::warning::apps/mobile/app.json no tiene extra.supabaseUrl (https://<ref>.supabase.co). Las funciones no se publicaron."
+            echo "listo=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if [ -z "$TOKEN" ]; then
+            echo "::warning::Falta el secreto SUPABASE_ACCESS_TOKEN. Las funciones no se publicaron (Supabase -> Account -> Access Tokens)."
+            echo "listo=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          echo "ref=$ref" >> "$GITHUB_OUTPUT"
+          echo "listo=true" >> "$GITHUB_OUTPUT"
+
+      - uses: pnpm/action-setup@v6
+        if: steps.secreto.outputs.listo == 'true'
+      - uses: actions/setup-node@v7
+        if: steps.secreto.outputs.listo == 'true'
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+        if: steps.secreto.outputs.listo == 'true'
+
+      - name: Publicar las cuatro funciones
+        if: steps.secreto.outputs.listo == 'true'
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          PROJECT_REF: ${{ steps.secreto.outputs.ref }}
+        run: |
+          for fn in stripe-pago stripe-webhook paypal-pago paypal-webhook; do
+            pnpm supabase functions deploy "$fn" --project-ref "$PROJECT_REF" --no-verify-jwt
+          done
+          echo "Webhook de Stripe:  https://$PROJECT_REF.supabase.co/functions/v1/stripe-webhook"
+          echo "Webhook de PayPal:  https://$PROJECT_REF.supabase.co/functions/v1/paypal-webhook"

@@ -1,0 +1,25 @@
+{
+  "name": "vivajuicebarweb",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@9.12.0",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "mobile": "pnpm --filter @juicebar/mobile start --tunnel"
+  },
+  "devDependencies": {
+    "eslint": "^9.11.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "prettier": "^3.3.0",
+    "supabase": "^2.0.0",
+    "turbo": "^2.1.0",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.8.0"
+  }
+}

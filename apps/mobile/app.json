@@ -1,0 +1,80 @@
+{
+  "expo": {
+    "name": "VIVA Juice and Coffee",
+    "slug": "viva-juice-coffee-web",
+    "scheme": "vivajuicecoffee",
+    "version": "0.1.0",
+    "userInterfaceStyle": "light",
+    "backgroundColor": "#0E4A2B",
+    "primaryColor": "#0E4A2B",
+    "orientation": "default",
+    "icon": "../../assets/brand/icon.png",
+    "runtimeVersion": "1.1.0",
+    "ios": {
+      "bundleIdentifier": "com.vivajuicecoffee.app",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.vivajuicecoffee.app",
+      "predictiveBackGestureEnabled": false,
+      "adaptiveIcon": {
+        "foregroundImage": "../../assets/brand/adaptive-icon.png",
+        "backgroundColor": "#0E4A2B"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "name": "VIVA Juice and Coffee",
+      "shortName": "VIVA",
+      "lang": "en",
+      "description": "Order fresh juices, smoothies, bowls and coffee at VIVA Juice and Coffee in Freehold, NJ. / Pide jugos, licuados, bowls y café.",
+      "themeColor": "#0E4A2B",
+      "backgroundColor": "#F5F0E6",
+      "favicon": "./public/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "../../assets/brand/splash.png",
+          "backgroundColor": "#0E4A2B",
+          "resizeMode": "contain",
+          "imageWidth": 220
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36,
+            "minSdkVersion": 24
+          },
+          "ios": {
+            "deploymentTarget": "16.4"
+          }
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "../../assets/brand/notification-icon.png",
+          "color": "#0E4A2B",
+          "defaultChannel": "orders"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": false
+    },
+    "extra": {
+      "restaurantId": "11111111-1111-4111-8111-111111111111",
+      "supabaseUrl": "",
+      "supabaseKey": "",
+      "currency": "USD",
+      "locale": "en-US"
+    }
+  }
+}

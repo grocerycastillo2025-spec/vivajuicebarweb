@@ -1,0 +1,37 @@
+node_modules/
+dist/
+.next/
+.expo/
+.turbo/
+*.tsbuildinfo
+
+# Secretos: NUNCA versionar
+.env
+.env.local
+.env.*.local
+*.pem
+*.p8
+*.keystore
+google-services.json
+GoogleService-Info.plist
+
+# Supabase
+supabase/.branches/
+supabase/.temp/
+
+coverage/
+.DS_Store
+
+# Expo
+apps/mobile/.expo/
+apps/mobile/dist/
+apps/mobile/android/
+apps/mobile/ios/
+
+# Lo que deja `eas env:pull`: trae el google-services.json.
+.eas/
+
+# Capturas del banco de pruebas visual: se regeneran con `npm run ver`.
+tools/vista/*.png
+tools/vista/out.js
+tools/vista/node_modules/
