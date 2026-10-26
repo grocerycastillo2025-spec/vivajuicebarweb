@@ -350,6 +350,23 @@ try {
     const [oat] = await db`select available from public.catalog_modifiers where clover_modifier_id = 'viva-mod-milk-oat'`;
     if (item.available || oat.available) throw new Error('No se guardó el agotado');
   });
+  await paso(t, 'tienda-cancela-cascada', async () => {
+    // Me equivoqué: la X deja la opción como estaba y no apaga nada.
+    await t.getByLabel('Buscar producto u opción').fill('naranja');
+    await t.getByRole('switch', { name: /^Naranja: Disponible/ }).filter({ visible: true }).first().click();
+    await visible(t, 'Naranja también se usa en esto');
+    await t.getByTestId('cascada-x').click();
+    await t.getByRole('switch', { name: /^Naranja: Disponible/ }).filter({ visible: true }).first().waitFor();
+    let row;
+    for (let i = 0; i < 40; i += 1) {
+      [row] = await db`select available from public.catalog_modifiers where clover_modifier_id = 'viva-mod-jb-orange'`;
+      if (row?.available === true) break;
+      await t.waitForTimeout(250);
+    }
+    if (row?.available !== true) throw new Error('Cancelar no regresó la naranja');
+    const [jugo] = await db`select available from public.catalog_items where name = 'Viva Juice'`;
+    if (jugo.available !== true) throw new Error('Cancelar apagó un producto');
+  });
   await paso(t, 'tienda-agota-naranja-y-sus-jugos', async () => {
     await t.getByLabel('Buscar producto u opción').fill('naranja');
     await t.getByRole('switch', { name: /^Naranja: Disponible/ }).filter({ visible: true }).first().click();

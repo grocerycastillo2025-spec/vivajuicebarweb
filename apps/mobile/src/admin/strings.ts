@@ -372,6 +372,8 @@ export const adminEs = {
     cascadeOffYes: (n: number): string => (n === 1 ? 'Apagar también (1)' : `Apagar también (${n})`),
     cascadeOnYes: (n: number): string => (n === 1 ? 'Encender también (1)' : `Encender también (${n})`),
     cascadeOnlyThis: 'Solo la opción',
+    cascadeCancel: (name: string, turningOn: boolean): string =>
+      turningOn ? `Cancelar (${name} sigue agotada)` : `Cancelar (no apagar ${name})`,
   },
 
   team: {

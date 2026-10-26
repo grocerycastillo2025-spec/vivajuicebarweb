@@ -144,6 +144,14 @@ export default function AdminStoreScreen(): ReactNode {
     setCascade(null);
   };
 
+  // Cancelar = "me equivoqué": la opción vuelve como estaba y no se toca nada más.
+  const cancelCascade = (): void => {
+    if (cascade === null) return;
+    const { optionId, next } = cascade;
+    void flip(`m:${optionId}`, !next, () => setOptionAvailable(optionId, !next));
+    setCascade(null);
+  };
+
   const changeAccepting = async (next: boolean): Promise<void> => {
     setBusy(true);
     setFailure(null);
@@ -219,13 +227,25 @@ export default function AdminStoreScreen(): ReactNode {
         </View>
       </View>
 
-      <Modal visible={cascade !== null} transparent animationType="fade" onRequestClose={() => setCascade(null)}>
+      <Modal visible={cascade !== null} transparent animationType="fade" onRequestClose={cancelCascade}>
         <View style={styles.backdrop}>
           {cascade !== null ? (
             <View style={styles.sheet} testID="cascada">
-              <Text style={styles.sheetTitle}>
-                {cascade.next ? t.cascadeOnTitle(cascade.optionName) : t.cascadeOffTitle(cascade.optionName)}
-              </Text>
+              <View style={styles.sheetHead}>
+                <Text style={[styles.sheetTitle, styles.grow]}>
+                  {cascade.next ? t.cascadeOnTitle(cascade.optionName) : t.cascadeOffTitle(cascade.optionName)}
+                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={adminStrings.cancel}
+                  onPress={cancelCascade}
+                  hitSlop={12}
+                  style={styles.closeX}
+                  testID="cascada-x"
+                >
+                  <Ionicons name="close" size={26} color={colors.textMuted} />
+                </Pressable>
+              </View>
               <Text style={styles.hint}>{t.cascadeHint}</Text>
               <ScrollView style={styles.sheetList}>
                 {cascade.items.length > 0 ? <Text style={styles.groupTitle}>{t.products}</Text> : null}
@@ -259,6 +279,9 @@ export default function AdminStoreScreen(): ReactNode {
                   }}
                   testID="cascada-no"
                 />
+                <Pressable accessibilityRole="button" onPress={cancelCascade} style={styles.cancelLink} testID="cascada-cancelar">
+                  <Text style={styles.cancelText}>{t.cascadeCancel(cascade.optionName, cascade.next)}</Text>
+                </Pressable>
               </View>
             </View>
           ) : null}
@@ -471,6 +494,11 @@ function createStyles(colors: BrandColors) {
       padding: spacing.lg,
       gap: spacing.sm,
     },
+    sheetHead: { flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm },
+    grow: { flex: 1, minWidth: 0 },
+    closeX: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginTop: -6, marginRight: -8 },
+    cancelLink: { alignItems: 'center', paddingVertical: spacing.sm, minHeight: 44, justifyContent: 'center' },
+    cancelText: { color: colors.textMuted, fontSize: typography.body.fontSize, fontWeight: '700', textDecorationLine: 'underline' },
     sheetTitle: { color: colors.text, fontSize: typography.section.fontSize, fontWeight: '800' },
     sheetList: { flexGrow: 0, maxHeight: 360 },
     sheetActions: { gap: spacing.sm, marginTop: spacing.sm },

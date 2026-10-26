@@ -370,6 +370,8 @@ export const adminEn: AdminStrings = {
     cascadeOffYes: (n: number): string => `Turn off too (${n})`,
     cascadeOnYes: (n: number): string => `Turn on too (${n})`,
     cascadeOnlyThis: 'Only the option',
+    cascadeCancel: (name: string, turningOn: boolean): string =>
+      turningOn ? `Cancel (${name} stays sold out)` : `Cancel (don’t turn off ${name})`,
   },
 
   team: {
