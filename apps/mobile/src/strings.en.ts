@@ -39,6 +39,8 @@ export const en: Strings = {
     hoursToday: (opens: string, closes: string): string => `Today ${opens} – ${closes}`,
     pickup: 'Store pickup',
     noPickup: 'No pickup orders',
+    pausedTitle: 'Orders paused',
+    pausedBody: "We're not taking app orders right now. You can still browse the menu; check back soon.",
     delivery: ' · Delivery',
     directions: (address: string): string => `Open ${address} in Google Maps`,
     noStoreTitle: 'No store available',

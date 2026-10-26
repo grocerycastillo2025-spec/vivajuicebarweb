@@ -78,6 +78,7 @@ import { fetchItemsRequiringChoice, fetchMenu } from '../../src/api/menu';
 import type { MenuCategory, MenuItemRow } from '../../src/api/types';
 import { CartBar } from '../../src/components/CartBar';
 import { DataState } from '../../src/components/DataState';
+import { PausedBanner } from '../../src/components/PausedBanner';
 import { MenuItemCard } from '../../src/components/MenuItemCard';
 import { Screen, useScreenInsets } from '../../src/components/Screen';
 import { SurchargeNotice } from '../../src/components/SurchargeNotice';
@@ -271,6 +272,7 @@ export default function MenuScreen(): ReactNode {
     <Screen scroll={false} withTabBar>
       <View style={styles.headerBar}>
         {header}
+        <PausedBanner store={selectedStore} style={styles.paused} />
         <SurchargeNotice disclosure={surcharge} variant="line" tone="menu" style={styles.notice} />
         <ScrollView
           ref={chipsRef}
@@ -404,6 +406,7 @@ function createStyles(colors: BrandColors) {
     },
 
     notice: { paddingHorizontal: spacing.lg, marginBottom: spacing.md },
+    paused: { marginHorizontal: spacing.lg, marginBottom: spacing.md },
 
     chips: { paddingHorizontal: spacing.lg, paddingBottom: spacing.md, gap: spacing.sm },
     chip: {

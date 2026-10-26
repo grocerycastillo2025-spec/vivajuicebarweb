@@ -286,6 +286,69 @@ try {
   });
 
   // -------------------------------------------------------------------
+  console.log('Tienda (cajero), tableta');
+  const t = await nuevaPagina({ locale: 'es-US', width: 1024, height: 768 });
+  await paso(t, 'tienda-entra', async () => {
+    await t.goto(`${APP}profile`);
+    await t.getByRole('button', { name: 'Cerrar' }).first().click({ timeout: 5000 }).catch(() => {});
+    await t.getByPlaceholder('Correo').fill('cajero@vivajuice.test');
+    await t.getByPlaceholder('Contraseña').fill('clave-segura-1');
+    await boton(t, 'Entrar').click();
+    await boton(t, 'Abrir el panel').click();
+    await visible(t, 'Nuevos');
+    // Ve Pedidos, Tienda y Lealtad; no Menú, Estadísticas ni Negocio.
+    for (const oculto of ['Negocio', 'Estadísticas']) {
+      if (await t.getByRole('link', { name: oculto }).filter({ visible: true }).count()) throw new Error(`La tienda ve ${oculto}`);
+    }
+  });
+  await paso(t, 'tienda-agota-producto', async () => {
+    await t.goto(`${APP}admin/tienda`);
+    await visible(t, 'Recibiendo pedidos');
+    await t.getByLabel('Buscar producto u opción').fill('verde');
+    await t.getByRole('switch', { name: /^Jugo Verde: Disponible/ }).filter({ visible: true }).first().click();
+    await visible(t, '1 agotado');
+    await t.getByLabel('Buscar producto u opción').fill('avena');
+    await t.getByRole('switch', { name: /avena: Disponible/i }).filter({ visible: true }).first().click();
+    await t.getByLabel('Buscar producto u opción').fill('');
+    await t.waitForTimeout(800);
+    const [item] = await db`select available from public.catalog_items where clover_item_id = 'viva-juice-green'`;
+    const [oat] = await db`select available from public.catalog_modifiers where clover_modifier_id = 'viva-mod-milk-oat'`;
+    if (item.available || oat.available) throw new Error('No se guardó el agotado');
+  });
+  await paso(t, 'tienda-pausa-pedidos', async () => {
+    await boton(t, 'Pausar pedidos').click();
+    await visible(t, '¿Pausar los pedidos de la app?');
+    await boton(t, 'Sí, pausar').click();
+    await visible(t, 'Pedidos en pausa');
+    await visible(t, 'pausó los pedidos');
+    const [s] = await db`select pickup_enabled from public.stores where id = ${STORE}`;
+    if (s.pickup_enabled) throw new Error('La tienda no quedó en pausa');
+  });
+  await paso(c, 'cliente-ve-agotado-y-pausa', async () => {
+    await c.goto(`${APP}menu`);
+    await visible(c, 'Pedidos en pausa');
+    await visible(c, 'Este producto no está disponible ahora');
+  });
+  await paso(t, 'tienda-reanuda', async () => {
+    await boton(t, 'Volver a recibir pedidos').click();
+    await visible(t, 'Recibiendo pedidos');
+    // Y no puede cambiar precios: la base lo impide aunque lo intente.
+    const res = await t.evaluate(async () => {
+      const key = Object.keys(localStorage).find((k) => k.includes('auth-token'));
+      return key ? JSON.parse(localStorage.getItem(key)).access_token : null;
+    });
+    if (res) {
+      await fetch(`${GATEWAY}/rest/v1/catalog_items?clover_item_id=eq.viva-juice-green`, {
+        method: 'PATCH',
+        headers: { authorization: `Bearer ${res}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ price_cents: 1 }),
+      });
+    }
+    const [item] = await db`select price_cents from public.catalog_items where clover_item_id = 'viva-juice-green'`;
+    if (Number(item.price_cents) !== 850) throw new Error('La tienda cambió un precio');
+  });
+
+  // -------------------------------------------------------------------
   console.log('Instalar la app');
   const iphone =
     'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1';

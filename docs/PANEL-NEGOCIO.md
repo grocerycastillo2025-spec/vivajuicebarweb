@@ -14,20 +14,23 @@ Supabase y los maneja el dueño desde `/admin`, dentro de la misma app.
 
 ## Quién puede qué
 
-| | Cliente | Cajero (`staff`) | Dueño (`owner`) |
+| | Cliente | Tienda (`staff`) | Dueño (`owner`) |
 |---|---|---|---|
 | Ver el menú y pedir | ✔ | ✔ | ✔ |
 | Ver y mover pedidos, cancelar con motivo | — | ✔ | ✔ |
 | Marcar "Pago recibido" | — | ✔ | ✔ |
 | Validar canjes de puntos | — | ✔ | ✔ |
-| Menú, precios, fotos, agotados, historias | — | — | ✔ |
-| Horario, pausar pedidos, marca, formas de pago, equipo | — | — | ✔ |
+| Agotar / encender productos y opciones | — | ✔ | ✔ |
+| Pausar / reanudar los pedidos de la app | — | ✔ | ✔ |
+| Menú, precios, fotos, historias | — | — | ✔ |
+| Horario, marca, impuestos, formas de pago, equipo, estadísticas | — | — | ✔ |
 
 Lo decide la base con RLS y funciones `SECURITY DEFINER`, no la app. Nadie
 se vuelve dueño desde la app: registrarse crea una cuenta de **cliente**.
 El primer dueño se da de alta una vez desde el SQL Editor (ver
 [PUESTA-EN-MARCHA.md](PUESTA-EN-MARCHA.md)); después, el dueño da y quita
-acceso desde **Negocio → Equipo**. Nadie se quita a sí mismo y siempre
+acceso desde **Negocio → Equipo** (elige **Tienda** para quien atiende el
+mostrador). Nadie se quita a sí mismo y siempre
 queda al menos un dueño.
 
 ## Las pestañas
@@ -38,6 +41,14 @@ queda al menos un dueño.
   Los pedidos de Zelle, Stripe y PayPal muestran **Pago por confirmar** o
   **Pago en línea pendiente** hasta que llega el pago; el cajero puede
   tocar **Pago recibido** (Zelle siempre se confirma así).
+- **Tienda** (dueño y Tienda): el día a día del mostrador. Arriba, un
+  cuadro grande verde **Recibiendo pedidos** / rojo **Pedidos en pausa**
+  con su botón (pausar pide confirmación). Abajo, todos los productos y
+  opciones (leches, frutas, extras) con su interruptor
+  **Disponible / Agotado** y un buscador. Al lado, **Últimos cambios**:
+  quién agotó, encendió o pausó y cuándo. El cliente ve el aviso de pausa
+  en Inicio, Menú y al pagar (no deja hacer el pedido), y los agotados
+  en gris.
 - **Menú**: categorías y productos con nombre y descripción en inglés y en
   español (si falta el español, se muestra el inglés), precio en dólares,
   foto, destacado y el interruptor de agotado.

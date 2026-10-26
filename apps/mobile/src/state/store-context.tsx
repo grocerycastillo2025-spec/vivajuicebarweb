@@ -85,6 +85,30 @@ export function StoreProvider({ children }: { children: ReactNode }): ReactNode 
     };
   }, [attempt]);
 
+  // Refresco silencioso (sin "cargando"): si la tienda pausa los pedidos o
+  // los reanuda, el cliente lo ve sin recargar la página.
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = (): void => {
+      void fetchStores(readEnv().restaurantId)
+        .then((list) => {
+          if (!cancelled && list.length > 0) setStores(list);
+        })
+        .catch(() => undefined);
+    };
+    const timer = setInterval(refresh, 60_000);
+    const doc = (globalThis as { document?: Document }).document;
+    const onVisible = (): void => {
+      if (doc?.visibilityState === 'visible') refresh();
+    };
+    doc?.addEventListener('visibilitychange', onVisible);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+      doc?.removeEventListener('visibilitychange', onVisible);
+    };
+  }, []);
+
   const selectStore = useCallback((storeId: string) => {
     setSelectedStoreId(storeId);
     void AsyncStorage.setItem(STORAGE_KEY, storeId).catch(() => undefined);

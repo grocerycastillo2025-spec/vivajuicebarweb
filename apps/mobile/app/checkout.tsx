@@ -32,6 +32,7 @@ import {
   placeCounterOrder,
 } from '../src/api/orders';
 import { fetchItemTax, fetchPickupSetup, fetchStore, type ItemTax } from '../src/api/store';
+import { PausedBanner } from '../src/components/PausedBanner';
 import { AuthForm } from '../src/components/AuthForm';
 import { DataState } from '../src/components/DataState';
 import { Screen, useScreenInsets } from '../src/components/Screen';
@@ -609,6 +610,7 @@ export default function CheckoutScreen(): ReactNode {
           Un aviso que el cliente puede no llegar a ver no es "claro y
           visible". Aqui va en su forma corta, que tambien lleva la cifra.
         */}
+        <PausedBanner store={paymentStore} style={styles.footerNotice} />
         <SurchargeNotice disclosure={surcharge} variant="line" style={styles.footerNotice} />
         {effectiveSlot !== null ? (
           <Text style={styles.footerSlot}>{strings.order.estimatedFor(effectiveSlot.label)}</Text>
@@ -617,7 +619,7 @@ export default function CheckoutScreen(): ReactNode {
           label={placing ? strings.checkout.placing : strings.checkout.placeOrderTotal(formatMoney(totals.totalCents))}
           onPress={() => void place()}
           busy={placing}
-          disabled={effectiveSlot === null}
+          disabled={effectiveSlot === null || paymentStore?.pickup_enabled === false}
         />
       </View>
     </Screen>

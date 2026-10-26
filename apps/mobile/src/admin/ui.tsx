@@ -24,10 +24,11 @@ import { radius, spacing, type as typography } from '../theme';
 import { useAdmin } from './admin-context';
 import { adminStrings as t } from './strings';
 
-type Tab = { readonly href: '/admin' | '/admin/menu' | '/admin/historias' | '/admin/estadisticas' | '/admin/lealtad' | '/admin/business'; readonly label: string; readonly icon: keyof typeof Ionicons.glyphMap; readonly ownerOnly: boolean };
+type Tab = { readonly href: '/admin' | '/admin/tienda' | '/admin/menu' | '/admin/historias' | '/admin/estadisticas' | '/admin/lealtad' | '/admin/business'; readonly label: string; readonly icon: keyof typeof Ionicons.glyphMap; readonly ownerOnly: boolean };
 
 const TABS: readonly Tab[] = [
   { href: '/admin', label: t.tabs.orders, icon: 'receipt-outline', ownerOnly: false },
+  { href: '/admin/tienda', label: t.tabs.store, icon: 'toggle-outline', ownerOnly: false },
   { href: '/admin/menu', label: t.tabs.menu, icon: 'restaurant-outline', ownerOnly: true },
   { href: '/admin/historias', label: t.tabs.stories, icon: 'images-outline', ownerOnly: true },
   { href: '/admin/estadisticas', label: t.tabs.stats, icon: 'stats-chart-outline', ownerOnly: true },

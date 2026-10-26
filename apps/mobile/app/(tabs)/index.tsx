@@ -33,6 +33,7 @@ import { InstallBanner } from '../../src/components/InstallBanner';
 import { StoriesRow } from '../../src/components/StoriesRow';
 import { readEnv } from '../../src/env';
 import { DataState } from '../../src/components/DataState';
+import { PausedBanner } from '../../src/components/PausedBanner';
 import { MenuItemCard } from '../../src/components/MenuItemCard';
 import { Screen } from '../../src/components/Screen';
 import { Button, SectionTitle } from '../../src/components/ui';
@@ -180,6 +181,7 @@ export default function HomeScreen(): ReactNode {
     <>
       <Screen withTabBar refreshing={refreshing} onRefresh={refresh} contentStyle={styles.content}>
         <InstallBanner />
+        <PausedBanner store={selectedStore} />
         <StoriesRow stories={stories ?? []} />
 
         <View style={styles.hero}>

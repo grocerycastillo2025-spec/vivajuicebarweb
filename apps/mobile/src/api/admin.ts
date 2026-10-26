@@ -623,3 +623,108 @@ export async function removeTeamMember(restaurantId: string, userId: string): Pr
   });
   fail(error);
 }
+
+// ---------------------------------------------------------------------
+// TIENDA (0031): agotados y pausa, para dueño y tienda
+// ---------------------------------------------------------------------
+
+export interface FloorItem {
+  readonly id: string;
+  readonly name: string;
+  readonly categoryId: string | null;
+  readonly available: boolean;
+}
+
+export interface FloorOption {
+  readonly id: string;
+  readonly name: string;
+  readonly groupName: string;
+  readonly available: boolean;
+}
+
+export interface FloorData {
+  readonly categories: readonly { id: string; name: string; sort: number }[];
+  readonly items: readonly FloorItem[];
+  readonly options: readonly FloorOption[];
+}
+
+/** Todo el catálogo de la sucursal con su estado, en español si hay traducción. */
+export async function fetchFloor(storeId: string): Promise<FloorData> {
+  const supabase = getSupabase();
+  const query = (withI18n: boolean) =>
+    Promise.all([
+      supabase.from('catalog_categories').select(withI18n ? 'id, name, sort_order, i18n' : 'id, name, sort_order')
+        .eq('store_id', storeId).is('deleted_at', null).order('sort_order')
+        .returns<{ id: string; name: string; sort_order: number; i18n?: unknown }[]>(),
+      supabase.from('catalog_items').select(withI18n ? 'id, name, category_id, available, i18n' : 'id, name, category_id, available')
+        .eq('store_id', storeId).is('deleted_at', null).order('name')
+        .returns<{ id: string; name: string; category_id: string | null; available: boolean; i18n?: unknown }[]>(),
+      supabase.from('catalog_modifiers')
+        .select(withI18n
+          ? 'id, name, available, sort_order, i18n, catalog_modifier_groups!inner(name, sort_order, i18n)'
+          : 'id, name, available, sort_order, catalog_modifier_groups!inner(name, sort_order)')
+        .eq('store_id', storeId).is('deleted_at', null)
+        .returns<{ id: string; name: string; available: boolean; sort_order: number; i18n?: unknown;
+                   catalog_modifier_groups: { name: string; sort_order: number; i18n?: unknown } }[]>(),
+    ]);
+  let [cats, items, mods] = await query(true);
+  if (isMissingColumn(cats.error) || isMissingColumn(items.error) || isMissingColumn(mods.error)) {
+    [cats, items, mods] = await query(false);
+  }
+  fail(cats.error);
+  fail(items.error);
+  fail(mods.error);
+  const es = (base: string, i18n: unknown): string => spanish(i18n, 'name') || base;
+  return {
+    categories: (cats.data ?? []).map((c) => ({ id: c.id, name: es(c.name, c.i18n), sort: c.sort_order })),
+    items: (items.data ?? [])
+      .map((i) => ({ id: i.id, name: es(i.name, i.i18n), categoryId: i.category_id, available: i.available }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'es')),
+    options: (mods.data ?? [])
+      .slice()
+      .sort((a, b) =>
+        a.catalog_modifier_groups.sort_order - b.catalog_modifier_groups.sort_order || a.sort_order - b.sort_order)
+      .map((m) => ({
+        id: m.id,
+        name: es(m.name, m.i18n),
+        groupName: es(m.catalog_modifier_groups.name, m.catalog_modifier_groups.i18n),
+        available: m.available,
+      })),
+  };
+}
+
+function missingStoreSql(error: { code?: string; message: string } | null): void {
+  // Base sin la 0031: la función no existe.
+  if (error?.code === 'PGRST202' || error?.code === '42883') {
+    throw dataError(`Falta correr ${MISSING_SQL_FILE} en Supabase (SQL Editor → Run).`, error.code);
+  }
+  fail(error);
+}
+
+export async function setItemAvailable(itemId: string, available: boolean): Promise<void> {
+  const { error } = await getSupabase().rpc('set_item_available', { p_item_id: itemId, p_available: available });
+  missingStoreSql(error);
+}
+
+export async function setOptionAvailable(modifierId: string, available: boolean): Promise<void> {
+  const { error } = await getSupabase().rpc('set_modifier_available', { p_modifier_id: modifierId, p_available: available });
+  missingStoreSql(error);
+}
+
+export async function setAcceptingOrders(storeId: string, accepting: boolean): Promise<void> {
+  const { error } = await getSupabase().rpc('set_store_accepting_orders', { p_store_id: storeId, p_accepting: accepting });
+  missingStoreSql(error);
+}
+
+export interface StoreActivity {
+  readonly created_at: string;
+  readonly action: string;
+  readonly entity_name: string | null;
+  readonly who: string | null;
+}
+
+export async function fetchStoreActivity(restaurantId: string): Promise<StoreActivity[]> {
+  const { data, error } = await getSupabase().rpc('store_activity', { p_restaurant_id: restaurantId, p_limit: 30 });
+  if (error !== null || !Array.isArray(data)) return [];
+  return data as StoreActivity[];
+}

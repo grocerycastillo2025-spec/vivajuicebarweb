@@ -47,6 +47,8 @@ export const es = {
     hoursToday: (opens: string, closes: string): string => `Hoy ${opens} – ${closes}`,
     pickup: 'Recoger en tienda',
     noPickup: 'Sin pedidos para recoger',
+    pausedTitle: 'Pedidos en pausa',
+    pausedBody: 'Por ahora no estamos recibiendo pedidos en la app. Puedes ver el menú; vuelve en un rato.',
     delivery: ' · A domicilio',
     directions: (address: string): string => `Abrir ${address} en Google Maps`,
     noStoreTitle: 'No hay sucursal disponible',
