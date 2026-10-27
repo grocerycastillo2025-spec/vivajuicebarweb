@@ -32,6 +32,7 @@ import { LanguageToggle } from '../../src/components/LanguageToggle';
 import { InstallBanner } from '../../src/components/InstallBanner';
 import { StoriesRow } from '../../src/components/StoriesRow';
 import { readEnv } from '../../src/env';
+import { CommunityTeaser, StoreRating } from '../../src/components/community/CommunityTeaser';
 import { DataState } from '../../src/components/DataState';
 import { PausedBanner } from '../../src/components/PausedBanner';
 import { MenuItemCard } from '../../src/components/MenuItemCard';
@@ -72,7 +73,7 @@ export default function HomeScreen(): ReactNode {
   const width = useContentWidth();
   // En la Home siempre dos por fila como minimo: es lo que pide la foto.
   const columns = Math.max(2, gridColumns(width));
-  const { colors, displayName, logoUrl } = useBranding();
+  const { colors, displayName, logoUrl, features } = useBranding();
   const styles = useMemo(() => createStyles(colors), [colors]);
 
   // Historias (0022). Van aparte del resto de Inicio: si fallan, no
@@ -231,6 +232,7 @@ export default function HomeScreen(): ReactNode {
             <Text style={styles.meta} numberOfLines={1}>
               {selectedStore.name} · {hoursLabel}
             </Text>
+            {features.community ? <StoreRating /> : null}
             {hasChoice ? (
               <Pressable
                 accessibilityRole="button"
@@ -263,6 +265,8 @@ export default function HomeScreen(): ReactNode {
             </View>
           )}
         </View>
+
+        {features.community ? <CommunityTeaser /> : null}
       </Screen>
       <CartBar />
     </>

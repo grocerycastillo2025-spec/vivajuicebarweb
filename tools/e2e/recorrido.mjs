@@ -543,6 +543,132 @@ try {
   });
 
   // -------------------------------------------------------------------
+  console.log('Comunidad VIVA');
+  const FOTO = join(here, '..', '..', 'apps', 'mobile', 'public', 'img', 'menu', 'anti-flu.jpg');
+  await paso(c, 'comunidad-resena-5-estrellas', async () => {
+    await c.goto(`${APP}comunidad`);
+    await visible(c, 'Comunidad VIVA');
+    await visible(c, 'Todavía no hay reseñas');
+    await c.getByTestId('escribir-comunidad').filter({ visible: true }).click();
+    await c.getByTestId('estrella-5').filter({ visible: true }).click();
+    await c.getByTestId('texto-publicacion').filter({ visible: true }).fill('El jugo verde está buenísimo y me atendieron rapidísimo.');
+    const [chooser] = await Promise.all([
+      c.waitForEvent('filechooser'),
+      c.getByTestId('agregar-foto').filter({ visible: true }).click(),
+    ]);
+    await chooser.setFiles(FOTO);
+    await visible(c, 'Cambiar foto');
+    await c.getByTestId('publicar').filter({ visible: true }).click();
+    await visible(c, '+10 puntos por tu primera reseña');
+    await visible(c, 'Ana L.');
+    await visible(c, 'Cliente verificado');
+    const [p] = await db`select status, verified, author_name, photo_path, points_awarded from public.community_posts where kind = 'review'`;
+    if (p?.status !== 'published' || !p.verified || p.author_name !== 'Ana L.' || !p.photo_path || p.points_awarded !== 10) {
+      throw new Error(`Reseña: ${JSON.stringify(p)}`);
+    }
+    await c.locator('img[src*="/object/public/community/"]').filter({ visible: true }).first().waitFor({ timeout: 10_000 });
+  });
+  await paso(c, 'comunidad-bloquea-telefono-y-resena-baja-a-revision', async () => {
+    await c.getByTestId('escribir-comunidad').filter({ visible: true }).click();
+    await c.getByTestId('estrella-2').filter({ visible: true }).click();
+    await c.getByTestId('texto-publicacion').filter({ visible: true }).fill('Tardaron, llámame al 732 555 0142');
+    await visible(c, 'Quita el número');
+    if (await c.getByTestId('publicar').filter({ visible: true }).isEnabled()) throw new Error('Deja publicar con teléfono');
+    await c.getByTestId('texto-publicacion').filter({ visible: true }).fill('Esta vez tardaron bastante en sacar mi pedido.');
+    await c.getByTestId('publicar').filter({ visible: true }).click();
+    await visible(c, 'La tienda la revisa antes de publicarla');
+    await visible(c, 'En revisión: solo tú la ves por ahora.');
+  });
+  await paso(c, 'comunidad-otro-cliente-responde-y-reporta', async () => {
+    await cuenta('beto@example.test');
+    const b = await nuevaPagina({ locale: 'es-US' });
+    await b.goto(`${APP}profile`);
+    await b.getByRole('button', { name: 'Cerrar' }).first().click({ timeout: 5000 }).catch(() => {});
+    await b.getByPlaceholder('Correo').fill('beto@example.test');
+    await b.getByPlaceholder('Contraseña').fill('clave-segura-1');
+    await boton(b, 'Entrar').click();
+    await b.waitForTimeout(800);
+    await b.goto(`${APP}comunidad`);
+    await visible(b, 'El jugo verde está buenísimo');
+    // La reseña de 2 estrellas no se ve para otros mientras está en revisión.
+    if (await b.getByText('tardaron bastante').filter({ visible: true }).count()) throw new Error('Beto ve la reseña pendiente');
+    await b.getByTestId('me-sirvio').filter({ visible: true }).first().click();
+    await b.getByTestId('ver-respuestas').filter({ visible: true }).first().click();
+    await b.getByTestId('texto-respuesta').filter({ visible: true }).fill('¡Totalmente! El verde es mi favorito.');
+    await b.getByTestId('enviar-respuesta').filter({ visible: true }).click();
+    await visible(b, 'El verde es mi favorito');
+    await b.getByRole('button', { name: 'Reportar' }).filter({ visible: true }).first().click();
+    await b.getByText('Spam o publicidad').filter({ visible: true }).first().click();
+    await visible(b, 'La tienda lo va a revisar');
+    const [r] = await db`select count(*)::int as n from public.community_reports`;
+    if (r.n !== 1) throw new Error(`Reportes: ${r.n}`);
+    await b.screenshot({ path: join(here, 'capturas', `${String(n + 1).padStart(2, '0')}b-beto-hilo.png`) });
+    await b.close();
+  });
+  await paso(d, 'comunidad-panel-aprueba-responde-y-avisa', async () => {
+    await d.goto(`${APP}admin/comunidad`);
+    await visible(d, 'Por revisar (1)');
+    await visible(d, 'tardaron bastante');
+    await visible(d, 'ana@example.test');
+    await d.getByTestId('aprobar').filter({ visible: true }).first().click();
+    await visible(d, 'Nada por revisar');
+    await d.getByTestId('filtro-published').click();
+    await visible(d, 'El jugo verde está buenísimo');
+    await d.getByTestId('responder-viva').filter({ visible: true }).last().click();
+    await d.getByTestId('texto-respuesta-viva').fill('¡Gracias, Ana! Te esperamos pronto 💚');
+    await d.getByTestId('enviar-respuesta-viva').click();
+    await visible(d, 'Te esperamos pronto');
+    // Ocultar la respuesta de Beto con motivo.
+    await d.getByTestId('ocultar-respuesta').filter({ visible: true }).first().click();
+    await d.getByTestId('motivo-ocultar').filter({ visible: true }).getByText('Spam o publicidad').click();
+    await d.getByTestId('confirmar-ocultar').filter({ visible: true }).click();
+    let h;
+    for (let i = 0; i < 40; i += 1) {
+      [h] = await db`select status, hidden_reason from public.community_replies where author_role = 'customer'`;
+      if (h?.status === 'hidden') break;
+      await d.waitForTimeout(250);
+    }
+    if (h?.status !== 'hidden' || h.hidden_reason !== 'Spam o publicidad') throw new Error(`Respuesta: ${JSON.stringify(h)}`);
+    await d.getByLabel('Texto del aviso').fill('¡Nuevo sabor! Licuado de mango con chamoy, solo este fin de semana.');
+    await d.getByLabel('Fecha del evento (opcional)').fill('2026-12-24');
+    await d.getByTestId('publicar-aviso').click();
+    await visible(d, 'Aviso publicado');
+    await visible(d, 'mango con chamoy');
+    await d.getByTestId('filtro-audit').click();
+    await visible(d, 'Publicó un aviso');
+    await visible(d, 'Ocultó');
+  });
+  await paso(c, 'comunidad-ana-recibe-aviso-y-ve-inicio', async () => {
+    await c.goto(APP);
+    // Las historias nuevas se abren solas: se cierran primero.
+    await c.waitForURL(/historias/, { timeout: 8000 }).catch(() => {});
+    if (c.url().includes('historias')) await c.getByRole('button', { name: 'Cerrar' }).filter({ visible: true }).first().click();
+    await c.getByTestId('aviso-comunidad').waitFor({ timeout: 15_000 });
+    await visible(c, 'respondió tu publicación');
+    await c.getByTestId('comunidad-inicio').waitFor({ timeout: 15_000 });
+    await c.getByTestId('estrellas-tienda').filter({ visible: true }).first().waitFor();
+    await visible(c, '3.5');
+    await c.getByTestId('comunidad-inicio').scrollIntoViewIfNeeded();
+  });
+  await paso(c, 'comunidad-hilo-con-respuesta-de-viva', async () => {
+    await c.getByTestId('aviso-comunidad').getByText('Ver').click();
+    await visible(c, 'Comunidad');
+    await c.getByTestId('respuesta-tienda').filter({ visible: true }).first().waitFor();
+    if (await c.getByText('El verde es mi favorito').filter({ visible: true }).count()) throw new Error('Se ve la respuesta oculta');
+    await c.goto(`${APP}comunidad`);
+    await visible(c, 'mango con chamoy');
+    // Mirar la comunidad marca como leídos los avisos de Ana.
+    let unread;
+    for (let i = 0; i < 40; i += 1) {
+      [unread] = await db`select count(*)::int as n from public.community_notifications nt
+                            join auth.users u on u.id = nt.user_id where u.email = 'ana@example.test' and nt.read_at is null`;
+      if (unread.n === 0) break;
+      await c.waitForTimeout(250);
+    }
+    if (unread.n !== 0) throw new Error(`Avisos sin leer: ${unread.n}`);
+  });
+
+  // -------------------------------------------------------------------
   console.log('Dueña: estadísticas y QR de la app');
   await paso(d, 'estadisticas-graficas', async () => {
     await d.goto(`${APP}admin/estadisticas`);

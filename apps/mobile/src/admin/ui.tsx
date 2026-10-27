@@ -27,7 +27,7 @@ import { useAdmin } from './admin-context';
 import { setAdminLanguage, useAdminLanguage } from './language';
 import { adminStrings as t } from './strings';
 
-type Tab = { readonly href: '/admin' | '/admin/tienda' | '/admin/menu' | '/admin/historias' | '/admin/estadisticas' | '/admin/lealtad' | '/admin/business'; readonly label: keyof typeof t.tabs; readonly icon: keyof typeof Ionicons.glyphMap; readonly ownerOnly: boolean };
+type Tab = { readonly href: '/admin' | '/admin/tienda' | '/admin/menu' | '/admin/historias' | '/admin/estadisticas' | '/admin/lealtad' | '/admin/business' | '/admin/comunidad'; readonly label: keyof typeof t.tabs; readonly icon: keyof typeof Ionicons.glyphMap; readonly ownerOnly: boolean };
 
 const TABS: readonly Tab[] = [
   { href: '/admin', label: 'orders', icon: 'receipt-outline', ownerOnly: false },
@@ -36,6 +36,7 @@ const TABS: readonly Tab[] = [
   { href: '/admin/historias', label: 'stories', icon: 'images-outline', ownerOnly: true },
   { href: '/admin/estadisticas', label: 'stats', icon: 'stats-chart-outline', ownerOnly: true },
   { href: '/admin/lealtad', label: 'loyalty', icon: 'gift-outline', ownerOnly: false },
+  { href: '/admin/comunidad', label: 'community', icon: 'chatbubbles-outline', ownerOnly: true },
   { href: '/admin/business', label: 'business', icon: 'storefront-outline', ownerOnly: true },
 ];
 

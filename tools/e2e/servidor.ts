@@ -296,10 +296,19 @@ const gateway = createServer((req, res) => {
     // Storage mínimo para las fotos de perfil (bucket `avatars`): subir,
     // pedir liga firmada y servirla. Los permisos reales de storage se
     // prueban en SQL (0034); aquí solo se guarda en memoria.
-    const up = /^\/storage\/v1\/object\/(avatars\/.+)$/.exec(url.pathname);
+    const up = /^\/storage\/v1\/object\/((?:avatars|community)\/.+)$/.exec(url.pathname);
     if (up !== null && (req.method === 'POST' || req.method === 'PUT')) {
       archivos.set(decodeURIComponent(up[1] ?? ''), archivoDe(raw, String(req.headers['content-type'] ?? 'image/jpeg')));
       return send(res, 200, { Key: up[1] });
+    }
+    // Fotos de la comunidad: bucket público.
+    const pub = /^\/storage\/v1\/object\/public\/(community\/.+)$/.exec(url.pathname);
+    if (pub !== null && req.method === 'GET') {
+      const file = archivos.get(decodeURIComponent(pub[1] ?? ''));
+      if (file === undefined) return send(res, 404, { error: 'not_found' });
+      res.writeHead(200, { ...CORS, 'content-type': file.type });
+      res.end(file.body);
+      return;
     }
     const sign = /^\/storage\/v1\/object\/sign\/(avatars\/.+)$/.exec(url.pathname);
     if (sign !== null && req.method === 'POST') {

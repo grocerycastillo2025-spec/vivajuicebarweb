@@ -151,6 +151,9 @@ export function canVibrate(): boolean {
 
 export function vibrate(pattern: readonly number[] = STRONG_VIBRATION): void {
   if (!canVibrate()) return;
+  // Sin un toque previo el navegador la bloquea igual (y se queja en consola).
+  const activation = (navigator as Navigator & { userActivation?: { hasBeenActive: boolean } }).userActivation;
+  if (activation !== undefined && !activation.hasBeenActive) return;
   try {
     navigator.vibrate([...pattern]);
   } catch {

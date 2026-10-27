@@ -122,6 +122,27 @@ queda al menos un dueño.
   **impuestos y recargos** y **formas de pago** (ver [PAGOS.md](PAGOS.md)).
   En cada producto (Menú) se elige si cobra impuesto y, opcional, su tasa
   propia.
+- **Comunidad** (solo dueño): lo que los clientes escriben en la pestaña
+  **Comunidad** de la app (reseñas con estrellas y foto, preguntas, y
+  sugerencias privadas que solo ves tú).
+  - **¿Qué se publica sola?** Por defecto las reseñas de 4 y 5 ★; las de 1
+    a 3 ★ esperan en **Por revisar** hasta que toques **Publicar** u
+    **Ocultar** (con motivo: el cliente lo ve). También: "Solo 5 ★",
+    "Nada: todo lo reviso yo" o "Todo".
+  - **Responder como VIVA**: la respuesta sale marcada como de la tienda y
+    al cliente le llega el aviso. Las respuestas de otros clientes se
+    pueden ocultar y volver a mostrar.
+  - **Reportes**: cuando 2 clientes distintos reportan algo, se esconde
+    solo y pasa a Por revisar.
+  - **Avisos**: sabor nuevo, evento, horario de día festivo, con foto,
+    fecha y "Fijar arriba". Salen arriba en la Comunidad y en Inicio.
+  - **Puntos por la primera reseña** (10 por defecto, una vez por cliente,
+    cuando queda publicada).
+  - **Bitácora**: quién publicó, ocultó, respondió o cambió algo, y cuándo.
+  - La app nunca publica correos ni teléfonos (los bloquea al escribir) y
+    solo enseña nombre e inicial ("Ana L."). "Cliente verificado" = ya
+    pidió en VIVA.
+  - Apagar **Comunidad activa** quita la pestaña de la app.
 
 ## "Arma tu jugo / licuado / bowl"
 

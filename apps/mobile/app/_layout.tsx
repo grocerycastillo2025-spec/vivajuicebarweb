@@ -1,5 +1,6 @@
 import { Stack } from 'expo-router';
 
+import { CommunityWatcher } from '../src/components/community/CommunityWatcher';
 import { OrderWatcher } from '../src/components/OrderWatcher';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState, type ReactNode } from 'react';
@@ -59,6 +60,7 @@ function RootStack(): ReactNode {
         <Stack.Screen name="order/[id]" options={{ presentation: 'card' }} />
       </Stack>
       <OrderWatcher />
+      <CommunityWatcher />
     </>
   );
 }

@@ -31,6 +31,8 @@ export interface BrandFeatures {
   readonly tips: boolean;
   readonly favorites: boolean;
   readonly scheduling: boolean;
+  /** Comunidad VIVA (0035): reseñas, preguntas y avisos. */
+  readonly community: boolean;
 }
 
 export interface Branding {
@@ -78,6 +80,7 @@ export const defaultFeatures: BrandFeatures = {
   tips: true,
   favorites: true,
   scheduling: true,
+  community: true,
 };
 
 export function isHexColor(value: unknown): value is string {
@@ -153,6 +156,7 @@ function parseFeatures(raw: unknown): BrandFeatures {
 
   return {
     loyalty: read('loyalty'),
+    community: read('community'),
     promotions: read('promotions'),
     tips: read('tips'),
     favorites: read('favorites'),

@@ -71,6 +71,15 @@ export default function TabsLayout(): ReactNode {
         }}
       />
       <Tabs.Screen
+        name="comunidad"
+        options={{
+          title: strings.tabs.community,
+          tabBarIcon: tabIcon('chatbubbles-outline', 'chatbubbles'),
+          // `features.community` en false (Panel → Comunidad) esconde la pestaña.
+          ...(features.community && !loading ? {} : { href: null }),
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{ title: strings.tabs.profile, tabBarIcon: tabIcon('person-outline', 'person') }}
       />
