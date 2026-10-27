@@ -5,7 +5,7 @@
 
 import { Ionicons } from '@expo/vector-icons';
 import { usePathname, useRouter } from 'expo-router';
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -40,6 +40,10 @@ const TABS: readonly Tab[] = [
   { href: '/admin/business', label: 'business', icon: 'storefront-outline', ownerOnly: true },
 ];
 
+// Cada pantalla del panel monta su propio encabezado: se recuerda hasta
+// dónde estaban recorridas las pestañas para que no regresen al inicio.
+let tabScrollX = 0;
+
 export function AdminShell({
   children,
   scroll = true,
@@ -62,6 +66,19 @@ export function AdminShell({
   // En teléfono los botones del encabezado quedan solo con su ícono.
   const compact = width < 640;
   const [leaving, setLeaving] = useState(false);
+  const tabsRef = useRef<ScrollView>(null);
+  const tabsWidth = useRef(0);
+  const restored = useRef(false);
+
+  // Vuelve a donde estaban y, si la pestaña elegida queda fuera, la acerca.
+  const showActiveTab = (x: number, w: number): void => {
+    const view = tabsWidth.current > 0 ? tabsWidth.current : width - 32;
+    let target = tabScrollX;
+    if (view > 0 && (x < target || x + w > target + view)) target = Math.max(0, x - (view - w) / 2);
+    tabScrollX = target;
+    restored.current = true;
+    tabsRef.current?.scrollTo({ x: target, animated: false });
+  };
 
   // La sesión es la misma en la app y en el panel: salir aquí sale de las dos.
   const leave = async (): Promise<void> => {
@@ -133,7 +150,22 @@ export function AdminShell({
             {compact ? null : <Text style={styles.backLinkText}>{t.signOut}</Text>}
           </Pressable>
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
+        <ScrollView
+          ref={tabsRef}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabs}
+          scrollEventThrottle={32}
+          onLayout={(e) => {
+            tabsWidth.current = e.nativeEvent.layout.width;
+          }}
+          onContentSizeChange={() => {
+            if (!restored.current) tabsRef.current?.scrollTo({ x: tabScrollX, animated: false });
+          }}
+          onScroll={(e) => {
+            if (restored.current) tabScrollX = e.nativeEvent.contentOffset.x;
+          }}
+        >
           {TABS.filter((tab) => isOwner || !tab.ownerOnly).map((tab) => {
             const on = active(tab.href);
             return (
@@ -142,6 +174,7 @@ export function AdminShell({
                 accessibilityRole="tab"
                 accessibilityState={{ selected: on }}
                 onPress={() => router.replace(tab.href)}
+                onLayout={on ? (e) => showActiveTab(e.nativeEvent.layout.x, e.nativeEvent.layout.width) : undefined}
                 style={({ pressed }) => [styles.tab, on && styles.tabOn, pressed && styles.pressed]}
               >
                 <Ionicons name={tab.icon} size={18} color={on ? colors.primary : colors.onPrimary} />

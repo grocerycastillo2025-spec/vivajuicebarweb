@@ -776,6 +776,14 @@ try {
     await boton(p, 'Entrar').click();
     await boton(p, 'Abrir el panel').click();
     await p.getByRole('button', { name: 'Cerrar sesión' }).filter({ visible: true }).first().waitFor();
+    // Las pestañas de la derecha no deben regresar al inicio al elegirlas.
+    for (const [nombre, ruta] of [['Comunidad', 'comunidad'], ['Negocio', 'business'], ['Lealtad', 'lealtad']]) {
+      await p.getByRole('tab', { name: nombre }).filter({ visible: true }).last().click();
+      await p.waitForURL(new RegExp(`admin/${ruta}`));
+      await p.waitForTimeout(900);
+      const box = await p.getByRole('tab', { name: nombre }).filter({ visible: true }).last().boundingBox();
+      if (box === null || box.x < 0 || box.x + box.width > 390) throw new Error(`La pestaña ${nombre} quedó fuera: ${JSON.stringify(box)}`);
+    }
     await p.screenshot({ path: join(here, 'capturas', `${String(n).padStart(2, '0')}b-panel-telefono.png`) });
     await p.close();
   });
